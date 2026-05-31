@@ -1,6 +1,7 @@
 import type { Provider } from "./types.js";
 import { AnthropicProvider } from "./anthropic.js";
 import { OpenAIProvider } from "./openai.js";
+import { MockProvider } from "./mock.js";
 
 /**
  * The single source of truth for which providers exist. Adding a provider is:
@@ -15,6 +16,7 @@ import { OpenAIProvider } from "./openai.js";
 export const PROVIDER_FACTORIES: Record<string, () => Provider> = {
   anthropic: () => new AnthropicProvider(),
   openai: () => new OpenAIProvider(),
+  mock: () => new MockProvider(),
 };
 
 export const PROVIDER_IDS = Object.keys(PROVIDER_FACTORIES);
