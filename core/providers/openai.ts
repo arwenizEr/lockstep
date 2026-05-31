@@ -10,6 +10,18 @@ function timeoutMs(): number {
 }
 
 /**
+ * Reasoning models (o1/o3/o4/gpt-5 families) reject temperature/top_p with a 400
+ * and instead take reasoning_effort. Plain chat models are the inverse: they
+ * reject reasoning_effort. We must drop the wrong params per model, mirroring the
+ * Anthropic adapter's discipline (the Provider contract requires it).
+ */
+export function isReasoningModel(model: string): boolean {
+  return /^(o\d|gpt-5)/i.test(model);
+}
+
+let warnedTopK = false;
+
+/**
  * OpenAI adapter. Implemented against the Chat Completions API via fetch so we
  * don't pull in the SDK just for one call path. Same Provider interface as
  * Anthropic — adding a provider is ~one file.
@@ -47,11 +59,21 @@ export class OpenAIProvider implements Provider {
       model: req.model,
       messages,
     };
-    // Sampling params: OpenAI accepts these (unlike opus-4-8). Pass when set.
-    if (req.temperature !== undefined) body.temperature = req.temperature;
-    if (req.topP !== undefined) body.top_p = req.topP;
-    // effort -> reasoning_effort for reasoning models.
-    if (req.effort) body.reasoning_effort = req.effort;
+    // Drop the params each model class rejects (both return 400 otherwise).
+    if (isReasoningModel(req.model)) {
+      if (req.effort) body.reasoning_effort = req.effort;
+    } else {
+      if (req.temperature !== undefined) body.temperature = req.temperature;
+      if (req.topP !== undefined) body.top_p = req.topP;
+    }
+    // OpenAI Chat Completions has no top_k. Dropping it silently would make an
+    // anthropic-vs-openai compare use different sampling — warn once instead.
+    if (req.topK !== undefined && !warnedTopK) {
+      warnedTopK = true;
+      console.warn(
+        "lockstep: top_k is not supported by OpenAI Chat Completions and is ignored for openai targets."
+      );
+    }
 
     const start = Date.now();
     const ms = timeoutMs();

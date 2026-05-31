@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { OpenAIProvider } from "../core/providers/openai.js";
+import { describe, it, expect, vi } from "vitest";
+import { OpenAIProvider, isReasoningModel } from "../core/providers/openai.js";
 
 function okResp(body: unknown): Response {
   return {
@@ -63,6 +63,51 @@ describe("OpenAIProvider", () => {
     const r = await p.run(req);
     expect(r.tokensIn).toBe(0);
     expect(r.tokensOut).toBe(0);
+  });
+
+  it("classifies reasoning vs chat models", () => {
+    expect(isReasoningModel("o3-mini")).toBe(true);
+    expect(isReasoningModel("o1")).toBe(true);
+    expect(isReasoningModel("gpt-5.1")).toBe(true);
+    expect(isReasoningModel("gpt-4o-mini")).toBe(false);
+  });
+
+  it("drops temperature/top_p for reasoning models, keeps reasoning_effort", async () => {
+    let sent: any;
+    const p = new OpenAIProvider("sk-test", {
+      fetchImpl: async (_url, init: any) => {
+        sent = JSON.parse(init.body);
+        return okResp({ choices: [{ message: { content: "x" } }] });
+      },
+    });
+    await p.run({ ...req, model: "o3-mini", temperature: 0.5, topP: 0.9, effort: "high" });
+    expect(sent.reasoning_effort).toBe("high");
+    expect(sent.temperature).toBeUndefined();
+    expect(sent.top_p).toBeUndefined();
+  });
+
+  it("drops reasoning_effort for chat models, keeps temperature/top_p", async () => {
+    let sent: any;
+    const p = new OpenAIProvider("sk-test", {
+      fetchImpl: async (_url, init: any) => {
+        sent = JSON.parse(init.body);
+        return okResp({ choices: [{ message: { content: "x" } }] });
+      },
+    });
+    await p.run({ ...req, model: "gpt-4o-mini", temperature: 0.5, topP: 0.9, effort: "high" });
+    expect(sent.temperature).toBe(0.5);
+    expect(sent.top_p).toBe(0.9);
+    expect(sent.reasoning_effort).toBeUndefined();
+  });
+
+  it("warns when top_k is set on an openai target", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const p = new OpenAIProvider("sk-test", {
+      fetchImpl: async () => okResp({ choices: [{ message: { content: "x" } }] }),
+    });
+    await p.run({ ...req, model: "gpt-4o-mini", topK: 40 });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("top_k"));
+    warn.mockRestore();
   });
 
   it("honors LOCKSTEP_HTTP_TIMEOUT_MS in the timeout message", async () => {
