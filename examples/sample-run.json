@@ -1,0 +1,333 @@
+{
+  "schema": 1,
+  "startedAt": "2026-05-31T17:00:11.812Z",
+  "finishedAt": "2026-05-31T17:00:21.442Z",
+  "config": {
+    "targets": [
+      {
+        "id": "gpt-4o-mini",
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "temperature": 0
+      },
+      {
+        "id": "opus-4-8",
+        "provider": "anthropic",
+        "model": "claude-opus-4-8"
+      }
+    ],
+    "cases_dir": "./cases",
+    "pricing": {
+      "claude-opus-4-8": {
+        "in": 5,
+        "out": 25
+      },
+      "gpt-4o-mini": {
+        "in": 0.15,
+        "out": 0.6
+      }
+    },
+    "diff": {
+      "similarity_threshold": 0.9
+    }
+  },
+  "targets": [
+    {
+      "id": "gpt-4o-mini",
+      "provider": "openai",
+      "model": "gpt-4o-mini",
+      "temperature": 0
+    },
+    {
+      "id": "opus-4-8",
+      "provider": "anthropic",
+      "model": "claude-opus-4-8"
+    }
+  ],
+  "results": [
+    {
+      "caseId": "extract-invoice",
+      "inputIndex": 0,
+      "targetId": "gpt-4o-mini",
+      "model": "gpt-4o-mini",
+      "provider": "openai",
+      "prompt": "Extract vendor, total, and currency as JSON from this line: Invoice from Acme Corp — amount due 1240.00 USD, net 30.",
+      "system": "You are a precise extraction engine. Output only minified JSON, no prose, no code fences.",
+      "rubric": "Did it extract vendor, total, and currency correctly with no hallucinated fields?",
+      "status": "OK",
+      "output": "{\"vendor\":\"Acme Corp\",\"total\":1240.00,\"currency\":\"USD\"}",
+      "tokensIn": 63,
+      "tokensOut": 18,
+      "cost": 0.000020249999999999998,
+      "priced": true,
+      "latencyMs": 1865,
+      "assertions": [
+        {
+          "type": "json_valid",
+          "pass": true
+        },
+        {
+          "type": "json_has_keys",
+          "pass": true
+        }
+      ],
+      "assertionsPass": true,
+      "judge": {
+        "score": 1,
+        "reason": "The output correctly extracts all three required fields (vendor, total, currency) with accurate values and contains no hallucinated fields."
+      }
+    },
+    {
+      "caseId": "extract-invoice",
+      "inputIndex": 0,
+      "targetId": "opus-4-8",
+      "model": "claude-opus-4-8",
+      "provider": "anthropic",
+      "prompt": "Extract vendor, total, and currency as JSON from this line: Invoice from Acme Corp — amount due 1240.00 USD, net 30.",
+      "system": "You are a precise extraction engine. Output only minified JSON, no prose, no code fences.",
+      "rubric": "Did it extract vendor, total, and currency correctly with no hallucinated fields?",
+      "status": "OK",
+      "output": "{\"vendor\":\"Acme Corp\",\"total\":1240.00,\"currency\":\"USD\"}",
+      "tokensIn": 84,
+      "tokensOut": 32,
+      "cost": 0.00122,
+      "priced": true,
+      "latencyMs": 1990,
+      "assertions": [
+        {
+          "type": "json_valid",
+          "pass": true
+        },
+        {
+          "type": "json_has_keys",
+          "pass": true
+        }
+      ],
+      "assertionsPass": true,
+      "judge": {
+        "score": 1,
+        "reason": "All three fields (vendor, total, currency) were extracted correctly with no hallucinated fields or errors."
+      }
+    },
+    {
+      "caseId": "extract-invoice",
+      "inputIndex": 1,
+      "targetId": "gpt-4o-mini",
+      "model": "gpt-4o-mini",
+      "provider": "openai",
+      "prompt": "Extract vendor, total, and currency as JSON from this line: BILLED: GlobalHost Ltd  EUR 89.99  (monthly hosting)",
+      "system": "You are a precise extraction engine. Output only minified JSON, no prose, no code fences.",
+      "rubric": "Did it extract vendor, total, and currency correctly with no hallucinated fields?",
+      "status": "OK",
+      "output": "{\"vendor\":\"GlobalHost Ltd\",\"total\":89.99,\"currency\":\"EUR\"}",
+      "tokensIn": 62,
+      "tokensOut": 17,
+      "cost": 0.0000195,
+      "priced": true,
+      "latencyMs": 1834,
+      "assertions": [
+        {
+          "type": "json_valid",
+          "pass": true
+        },
+        {
+          "type": "json_has_keys",
+          "pass": true
+        }
+      ],
+      "assertionsPass": true,
+      "judge": {
+        "score": 1,
+        "reason": "The output correctly extracted all three required fields (vendor, total, currency) with accurate values and no hallucinated fields."
+      }
+    },
+    {
+      "caseId": "extract-invoice",
+      "inputIndex": 1,
+      "targetId": "opus-4-8",
+      "model": "claude-opus-4-8",
+      "provider": "anthropic",
+      "prompt": "Extract vendor, total, and currency as JSON from this line: BILLED: GlobalHost Ltd  EUR 89.99  (monthly hosting)",
+      "system": "You are a precise extraction engine. Output only minified JSON, no prose, no code fences.",
+      "rubric": "Did it extract vendor, total, and currency correctly with no hallucinated fields?",
+      "status": "OK",
+      "output": "{\"vendor\":\"GlobalHost Ltd\",\"total\":89.99,\"currency\":\"EUR\"}",
+      "tokensIn": 88,
+      "tokensOut": 36,
+      "cost": 0.00134,
+      "priced": true,
+      "latencyMs": 1647,
+      "assertions": [
+        {
+          "type": "json_valid",
+          "pass": true
+        },
+        {
+          "type": "json_has_keys",
+          "pass": true
+        }
+      ],
+      "assertionsPass": true,
+      "judge": {
+        "score": 1,
+        "reason": "All three required fields (vendor, total, currency) were extracted correctly with no hallucinated fields."
+      }
+    },
+    {
+      "caseId": "classify-sentiment",
+      "inputIndex": 0,
+      "targetId": "gpt-4o-mini",
+      "model": "gpt-4o-mini",
+      "provider": "openai",
+      "prompt": "Classify the sentiment of this review as exactly one word — positive, negative, or neutral: Honestly the best purchase I've made all year, works flawlessly.",
+      "system": "Reply with only one lowercase word.",
+      "rubric": "Is the single-word sentiment label correct for the review?",
+      "status": "OK",
+      "output": "positive",
+      "tokensIn": 49,
+      "tokensOut": 1,
+      "cost": 0.000007949999999999998,
+      "priced": true,
+      "latencyMs": 685,
+      "assertions": [
+        {
+          "type": "regex",
+          "pass": true
+        }
+      ],
+      "assertionsPass": true,
+      "judge": {
+        "score": 1,
+        "reason": "The review contains strongly positive language ('best purchase,' 'flawlessly') and the model correctly classified it as positive."
+      }
+    },
+    {
+      "caseId": "classify-sentiment",
+      "inputIndex": 0,
+      "targetId": "opus-4-8",
+      "model": "claude-opus-4-8",
+      "provider": "anthropic",
+      "prompt": "Classify the sentiment of this review as exactly one word — positive, negative, or neutral: Honestly the best purchase I've made all year, works flawlessly.",
+      "system": "Reply with only one lowercase word.",
+      "rubric": "Is the single-word sentiment label correct for the review?",
+      "status": "OK",
+      "output": "positive",
+      "tokensIn": 70,
+      "tokensOut": 4,
+      "cost": 0.00044999999999999993,
+      "priced": true,
+      "latencyMs": 979,
+      "assertions": [
+        {
+          "type": "regex",
+          "pass": true
+        }
+      ],
+      "assertionsPass": true,
+      "judge": {
+        "score": 1,
+        "reason": "The review expresses clear satisfaction and praise ('best purchase', 'works flawlessly'), making 'positive' the correct single-word sentiment label."
+      }
+    },
+    {
+      "caseId": "classify-sentiment",
+      "inputIndex": 1,
+      "targetId": "gpt-4o-mini",
+      "model": "gpt-4o-mini",
+      "provider": "openai",
+      "prompt": "Classify the sentiment of this review as exactly one word — positive, negative, or neutral: It arrived broken and support never replied.",
+      "system": "Reply with only one lowercase word.",
+      "rubric": "Is the single-word sentiment label correct for the review?",
+      "status": "OK",
+      "output": "negative",
+      "tokensIn": 45,
+      "tokensOut": 1,
+      "cost": 0.000007350000000000001,
+      "priced": true,
+      "latencyMs": 5483,
+      "assertions": [
+        {
+          "type": "regex",
+          "pass": true
+        }
+      ],
+      "assertionsPass": true,
+      "judge": {
+        "score": 1,
+        "reason": "The review clearly expresses dissatisfaction with a broken product and lack of customer support, making 'negative' the correct sentiment classification."
+      }
+    },
+    {
+      "caseId": "classify-sentiment",
+      "inputIndex": 1,
+      "targetId": "opus-4-8",
+      "model": "claude-opus-4-8",
+      "provider": "anthropic",
+      "prompt": "Classify the sentiment of this review as exactly one word — positive, negative, or neutral: It arrived broken and support never replied.",
+      "system": "Reply with only one lowercase word.",
+      "rubric": "Is the single-word sentiment label correct for the review?",
+      "status": "OK",
+      "output": "negative",
+      "tokensIn": 60,
+      "tokensOut": 4,
+      "cost": 0.0004,
+      "priced": true,
+      "latencyMs": 942,
+      "assertions": [
+        {
+          "type": "regex",
+          "pass": true
+        }
+      ],
+      "assertionsPass": true,
+      "judge": {
+        "score": 1,
+        "reason": "The review describes a broken product and unresponsive support, which are clearly negative experiences, making 'negative' the correct single-word sentiment label."
+      }
+    },
+    {
+      "caseId": "summarize-tweet",
+      "inputIndex": 0,
+      "targetId": "gpt-4o-mini",
+      "model": "gpt-4o-mini",
+      "provider": "openai",
+      "prompt": "Summarize this in one tweet-length sentence (<=200 chars), plain text: Every model release silently re-tunes behavior, cost, and parameters, so teams have to re-benchmark their own prompts after each drop to know what changed.",
+      "rubric": "Is it a single accurate sentence under 200 characters with no preamble?",
+      "status": "OK",
+      "output": "Each model release subtly adjusts behavior, cost, and parameters, requiring teams to re-benchmark their prompts to understand the changes.",
+      "tokensIn": 56,
+      "tokensOut": 25,
+      "cost": 0.0000234,
+      "priced": true,
+      "latencyMs": 1062,
+      "assertions": [],
+      "assertionsPass": true,
+      "judge": {
+        "score": 0.98,
+        "reason": "Single accurate sentence under 200 characters (109 chars) with no preamble, accurately summarizing the source material."
+      }
+    },
+    {
+      "caseId": "summarize-tweet",
+      "inputIndex": 0,
+      "targetId": "opus-4-8",
+      "model": "claude-opus-4-8",
+      "provider": "anthropic",
+      "prompt": "Summarize this in one tweet-length sentence (<=200 chars), plain text: Every model release silently re-tunes behavior, cost, and parameters, so teams have to re-benchmark their own prompts after each drop to know what changed.",
+      "rubric": "Is it a single accurate sentence under 200 characters with no preamble?",
+      "status": "OK",
+      "output": "Every model release quietly shifts behavior, cost, and parameters—forcing teams to re-benchmark their own prompts after each drop just to see what changed.",
+      "tokensIn": 82,
+      "tokensOut": 52,
+      "cost": 0.00171,
+      "priced": true,
+      "latencyMs": 1445,
+      "assertions": [],
+      "assertionsPass": true,
+      "judge": {
+        "score": 1,
+        "reason": "Single accurate sentence, 136 characters, plain text, no preamble, faithfully summarizes the source material."
+      }
+    }
+  ]
+}

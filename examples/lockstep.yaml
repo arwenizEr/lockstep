@@ -1,0 +1,20 @@
+# Demo suite: the same prompts run against two providers so the report shows a
+# real cross-provider comparison (OpenAI vs Anthropic) with cost + drift deltas.
+targets:
+  - id: gpt-4o-mini
+    provider: openai
+    model: gpt-4o-mini
+    temperature: 0
+  - id: opus-4-8
+    provider: anthropic
+    model: claude-opus-4-8
+
+cases_dir: ./cases
+
+# $/million tokens. USER-EDITABLE; verify before relying — provider prices drift.
+pricing:
+  claude-opus-4-8: { in: 5, out: 25 }
+  gpt-4o-mini: { in: 0.15, out: 0.6 }
+
+diff:
+  similarity_threshold: 0.9   # below this similarity => flag DRIFTED

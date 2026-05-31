@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lockstep — gpt-4o-mini vs opus-4-8</title>
+<style>
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --ink:#1a1f29; --ink-soft:#5b6573; --line:#e4e7ec;
+  --a:#2563eb; --a-soft:#eff4ff; --b:#7c3aed; --b-soft:#f5f0ff;
+  --ok:#0f9d58; --ok-soft:#e8f6ee; --drift:#c47d00; --drift-soft:#fbf2dd;
+  --broken:#d92d20; --broken-soft:#fdecea; --add:#d6f3e0; --rm:#fbe0de;
+  --shadow:0 1px 2px rgba(16,24,40,.04),0 4px 16px rgba(16,24,40,.06);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px 64px;}
+
+header{padding:48px 0 28px;}
+.brand{font-weight:700;letter-spacing:-.01em;color:var(--ink);font-size:15px;}
+.brand-sub{color:var(--ink-soft);font-weight:500;margin-left:2px;}
+h1{margin:18px 0 8px;font-size:clamp(28px,5vw,42px);font-weight:800;letter-spacing:-.025em;line-height:1.1;}
+h1 .vs{color:var(--ink-soft);font-weight:500;font-size:.6em;}
+.verdict{margin:4px 0 18px;font-size:clamp(16px,2.4vw,19px);color:var(--ink);font-weight:600;letter-spacing:-.01em;}
+.sub{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.muted{color:var(--ink-soft);font-weight:400;}
+.small{font-size:13px;}
+.pill{display:inline-flex;gap:6px;align-items:center;padding:5px 12px;border-radius:999px;font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--surface);}
+.pill-a{color:var(--a);border-color:#cfe0ff;background:var(--a-soft);}
+.pill-b{color:var(--b);border-color:#e3d6ff;background:var(--b-soft);}
+
+main{display:flex;flex-direction:column;gap:40px;}
+section{display:flex;flex-direction:column;gap:14px;}
+h2{margin:0;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow);}
+.card .num{font-size:26px;font-weight:800;letter-spacing:-.02em;}
+.card .num .arrow{color:var(--ink-soft);font-weight:500;}
+.card .lbl{color:var(--ink-soft);font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin-top:4px;}
+.card.ok .num{color:var(--ok);} .card.drift .num{color:var(--drift);} .card.broken .num{color:var(--broken);}
+
+.table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);}
+table{width:100%;border-collapse:collapse;font-size:14px;}
+th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);white-space:nowrap;}
+tr:last-child td{border-bottom:none;}
+thead th{color:var(--ink-soft);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.06em;background:#fafbfc;}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums;}
+td.case{font-weight:600;}
+td.case .muted{font-weight:400;margin-left:2px;}
+td.best{color:var(--ink);}
+td.pos{color:var(--ok);} td.neg{color:var(--broken);}
+tr.totals td{font-weight:700;background:#fafbfc;border-top:2px solid var(--line);}
+
+.badge{display:inline-block;padding:3px 9px;border-radius:7px;font-size:11px;font-weight:700;letter-spacing:.02em;}
+.badge-ok{background:var(--ok-soft);color:var(--ok);}
+.badge-drifted{background:var(--drift-soft);color:var(--drift);}
+.badge-broken{background:var(--broken-soft);color:var(--broken);}
+.badge-cheaper{background:var(--a-soft);color:var(--a);}
+.badge-pricier{background:var(--drift-soft);color:var(--drift);}
+.badge-faster{background:var(--ok-soft);color:var(--ok);}
+.badge-slower{background:var(--drift-soft);color:var(--drift);}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:16px;}
+.panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);background:#fafbfc;flex-wrap:wrap;}
+.panel-head .case strong{font-size:15px;}
+.panel-head .case .muted{margin-left:3px;}
+.panel-badges{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.cols{display:grid;grid-template-columns:1fr 1fr;}
+.col{padding:16px 18px;min-width:0;}
+.col:first-child{border-right:1px solid var(--line);}
+.col-head{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;}
+.col-head .meta{font-size:12px;color:var(--ink-soft);}
+.out{white-space:pre-wrap;word-break:break-word;margin:0;
+  font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  background:#fbfcfd;border:1px solid var(--line);border-radius:9px;padding:12px;
+  max-height:380px;overflow:auto;color:#2b313b;}
+.out .add{background:var(--add);border-radius:3px;padding:0 1px;}
+.out .rm{background:var(--rm);border-radius:3px;padding:0 1px;}
+.ok-text{color:var(--ok);font-weight:600;} .bad-text{color:var(--broken);font-weight:600;}
+.judge-reason{padding:10px 18px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-soft);font-style:italic;background:#fafbfc;}
+
+footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);color:var(--ink-soft);font-size:13px;}
+
+@media (max-width:680px){
+  .cols{grid-template-columns:1fr;}
+  .col:first-child{border-right:none;border-bottom:1px solid var(--line);}
+  header{padding:32px 0 20px;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="brand">◧ lockstep <span class="brand-sub">prompt-CI</span></div>
+  <h1>gpt-4o-mini <span class="vs">vs</span> opus-4-8</h1>
+  <p class="verdict">claude-opus-4-8 vs gpt-4o-mini: 1 drifted, ~65× pricier, 1.6× faster.</p>
+  <div class="sub">
+    <span class="pill pill-a">A · gpt-4o-mini <span class="muted">gpt-4o-mini</span></span>
+    <span class="pill pill-b">B · opus-4-8 <span class="muted">claude-opus-4-8</span></span>
+    <span class="muted small">drift threshold 90% similarity</span>
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="cards">
+      <div class="card"><div class="num">5</div><div class="lbl">cases</div></div>
+      <div class="card ok"><div class="num">0</div><div class="lbl">unchanged</div></div>
+      <div class="card drift"><div class="num">1</div><div class="lbl">drifted</div></div>
+      <div class="card broken"><div class="num">0</div><div class="lbl">broken</div></div>
+      <div class="card"><div class="num">$0.00008 <span class="arrow">→</span> $0.00512</div><div class="lbl">total cost · A → B</div></div>
+    </div></section>
+
+  <section>
+    <h2>Verdict per case</h2>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>case</th><th>status</th><th class="r">similarity</th><th>best target</th></tr></thead>
+      <tbody><tr>
+        <td class="case">classify-sentiment<span class="muted">#0</span></td>
+        <td><span class="badge badge-pricier">PRICIER</span> <span class="badge badge-slower">SLOWER</span></td>
+        <td class="r">100%</td>
+        <td class="best"><strong>A (cheaper)</strong></td>
+      </tr>
+<tr>
+        <td class="case">classify-sentiment<span class="muted">#1</span></td>
+        <td><span class="badge badge-pricier">PRICIER</span> <span class="badge badge-faster">FASTER</span></td>
+        <td class="r">100%</td>
+        <td class="best"><strong>A (cheaper)</strong></td>
+      </tr>
+<tr>
+        <td class="case">extract-invoice<span class="muted">#0</span></td>
+        <td><span class="badge badge-pricier">PRICIER</span> <span class="badge badge-slower">SLOWER</span></td>
+        <td class="r">100%</td>
+        <td class="best"><strong>A (cheaper)</strong></td>
+      </tr>
+<tr>
+        <td class="case">extract-invoice<span class="muted">#1</span></td>
+        <td><span class="badge badge-pricier">PRICIER</span> <span class="badge badge-faster">FASTER</span></td>
+        <td class="r">100%</td>
+        <td class="best"><strong>A (cheaper)</strong></td>
+      </tr>
+<tr>
+        <td class="case">summarize-tweet<span class="muted">#0</span></td>
+        <td><span class="badge badge-drifted">DRIFTED</span> <span class="badge badge-pricier">PRICIER</span> <span class="badge badge-slower">SLOWER</span></td>
+        <td class="r">66%</td>
+        <td class="best"><strong>A (cheaper)</strong></td>
+      </tr></tbody>
+    </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Cost &amp; latency per task</h2>
+    <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>case</th>
+        <th class="r">cost A</th><th class="r">cost B</th><th class="r">Δ cost</th><th class="r">Δ %</th>
+        <th class="r">lat A</th><th class="r">lat B</th><th class="r">Δ lat</th>
+      </tr></thead>
+      <tbody><tr>
+        <td class="case">classify-sentiment<span class="muted">#0</span></td>
+        <td class="r">$0.00001</td>
+        <td class="r">$0.00045</td>
+        <td class="r neg">$0.00044</td>
+        <td class="r neg">+5560%</td>
+        <td class="r">685ms</td>
+        <td class="r">979ms</td>
+        <td class="r neg">+294ms</td>
+      </tr>
+<tr>
+        <td class="case">classify-sentiment<span class="muted">#1</span></td>
+        <td class="r">$0.00001</td>
+        <td class="r">$0.00040</td>
+        <td class="r neg">$0.00039</td>
+        <td class="r neg">+5342%</td>
+        <td class="r">5.5s</td>
+        <td class="r">942ms</td>
+        <td class="r pos">−4.5s</td>
+      </tr>
+<tr>
+        <td class="case">extract-invoice<span class="muted">#0</span></td>
+        <td class="r">$0.00002</td>
+        <td class="r">$0.00122</td>
+        <td class="r neg">$0.00120</td>
+        <td class="r neg">+5925%</td>
+        <td class="r">1.9s</td>
+        <td class="r">2.0s</td>
+        <td class="r neg">+125ms</td>
+      </tr>
+<tr>
+        <td class="case">extract-invoice<span class="muted">#1</span></td>
+        <td class="r">$0.00002</td>
+        <td class="r">$0.00134</td>
+        <td class="r neg">$0.00132</td>
+        <td class="r neg">+6772%</td>
+        <td class="r">1.8s</td>
+        <td class="r">1.6s</td>
+        <td class="r pos">−187ms</td>
+      </tr>
+<tr>
+        <td class="case">summarize-tweet<span class="muted">#0</span></td>
+        <td class="r">$0.00002</td>
+        <td class="r">$0.00171</td>
+        <td class="r neg">$0.00169</td>
+        <td class="r neg">+7208%</td>
+        <td class="r">1.1s</td>
+        <td class="r">1.4s</td>
+        <td class="r neg">+383ms</td>
+      </tr><tr class="totals">
+    <td>total</td>
+    <td class="r">$0.00008</td>
+    <td class="r">$0.00512</td>
+    <td class="r" colspan="5"></td>
+  </tr></tbody>
+    </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Before / after</h2>
+    <div class="panel">
+    <div class="panel-head">
+      <span class="case"><strong>classify-sentiment</strong><span class="muted">#0</span></span>
+      <span class="panel-badges"><span class="badge badge-pricier">PRICIER</span> <span class="badge badge-slower">SLOWER</span> <span class="muted small">100% similar</span></span>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="col-head"><span class="pill pill-a">A · gpt-4o-mini</span> <span class="meta">49/1 tok · 685ms · $0.00001 · <span class="ok-text">assertions ✓</span> · judge <strong>1.00</strong></span></div>
+        <pre class="out">positive</pre>
+      </div>
+      <div class="col">
+        <div class="col-head"><span class="pill pill-b">B · opus-4-8</span> <span class="meta">70/4 tok · 979ms · $0.00045 · <span class="ok-text">assertions ✓</span> · judge <strong>1.00</strong></span></div>
+        <pre class="out">positive</pre>
+      </div>
+    </div>
+    <div class="judge-reason">judge: The review expresses clear satisfaction and praise ('best purchase', 'works flawlessly'), making 'positive' the correct single-word sentiment label.</div>
+  </div>
+<div class="panel">
+    <div class="panel-head">
+      <span class="case"><strong>classify-sentiment</strong><span class="muted">#1</span></span>
+      <span class="panel-badges"><span class="badge badge-pricier">PRICIER</span> <span class="badge badge-faster">FASTER</span> <span class="muted small">100% similar</span></span>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="col-head"><span class="pill pill-a">A · gpt-4o-mini</span> <span class="meta">45/1 tok · 5.5s · $0.00001 · <span class="ok-text">assertions ✓</span> · judge <strong>1.00</strong></span></div>
+        <pre class="out">negative</pre>
+      </div>
+      <div class="col">
+        <div class="col-head"><span class="pill pill-b">B · opus-4-8</span> <span class="meta">60/4 tok · 942ms · $0.00040 · <span class="ok-text">assertions ✓</span> · judge <strong>1.00</strong></span></div>
+        <pre class="out">negative</pre>
+      </div>
+    </div>
+    <div class="judge-reason">judge: The review describes a broken product and unresponsive support, which are clearly negative experiences, making 'negative' the correct single-word sentiment label.</div>
+  </div>
+<div class="panel">
+    <div class="panel-head">
+      <span class="case"><strong>extract-invoice</strong><span class="muted">#0</span></span>
+      <span class="panel-badges"><span class="badge badge-pricier">PRICIER</span> <span class="badge badge-slower">SLOWER</span> <span class="muted small">100% similar</span></span>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="col-head"><span class="pill pill-a">A · gpt-4o-mini</span> <span class="meta">63/18 tok · 1.9s · $0.00002 · <span class="ok-text">assertions ✓</span> · judge <strong>1.00</strong></span></div>
+        <pre class="out">{&quot;vendor&quot;:&quot;Acme Corp&quot;,&quot;total&quot;:1240.00,&quot;currency&quot;:&quot;USD&quot;}</pre>
+      </div>
+      <div class="col">
+        <div class="col-head"><span class="pill pill-b">B · opus-4-8</span> <span class="meta">84/32 tok · 2.0s · $0.00122 · <span class="ok-text">assertions ✓</span> · judge <strong>1.00</strong></span></div>
+        <pre class="out">{&quot;vendor&quot;:&quot;Acme Corp&quot;,&quot;total&quot;:1240.00,&quot;currency&quot;:&quot;USD&quot;}</pre>
+      </div>
+    </div>
+    <div class="judge-reason">judge: All three fields (vendor, total, currency) were extracted correctly with no hallucinated fields or errors.</div>
+  </div>
+<div class="panel">
+    <div class="panel-head">
+      <span class="case"><strong>extract-invoice</strong><span class="muted">#1</span></span>
+      <span class="panel-badges"><span class="badge badge-pricier">PRICIER</span> <span class="badge badge-faster">FASTER</span> <span class="muted small">100% similar</span></span>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="col-head"><span class="pill pill-a">A · gpt-4o-mini</span> <span class="meta">62/17 tok · 1.8s · $0.00002 · <span class="ok-text">assertions ✓</span> · judge <strong>1.00</strong></span></div>
+        <pre class="out">{&quot;vendor&quot;:&quot;GlobalHost Ltd&quot;,&quot;total&quot;:89.99,&quot;currency&quot;:&quot;EUR&quot;}</pre>
+      </div>
+      <div class="col">
+        <div class="col-head"><span class="pill pill-b">B · opus-4-8</span> <span class="meta">88/36 tok · 1.6s · $0.00134 · <span class="ok-text">assertions ✓</span> · judge <strong>1.00</strong></span></div>
+        <pre class="out">{&quot;vendor&quot;:&quot;GlobalHost Ltd&quot;,&quot;total&quot;:89.99,&quot;currency&quot;:&quot;EUR&quot;}</pre>
+      </div>
+    </div>
+    <div class="judge-reason">judge: All three required fields (vendor, total, currency) were extracted correctly with no hallucinated fields.</div>
+  </div>
+<div class="panel">
+    <div class="panel-head">
+      <span class="case"><strong>summarize-tweet</strong><span class="muted">#0</span></span>
+      <span class="panel-badges"><span class="badge badge-drifted">DRIFTED</span> <span class="badge badge-pricier">PRICIER</span> <span class="badge badge-slower">SLOWER</span> <span class="muted small">66% similar</span></span>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="col-head"><span class="pill pill-a">A · gpt-4o-mini</span> <span class="meta">56/25 tok · 1.1s · $0.00002 · judge <strong>0.98</strong></span></div>
+        <pre class="out"><span class="rm">Each</span> model release <span class="rm">subtly</span> <span class="rm">adjusts</span> behavior, cost, and <span class="rm">parameters,</span> <span class="rm">requiring</span> teams to re-benchmark their prompts to <span class="rm">understand</span> <span class="rm">the</span> <span class="rm">changes.</span></pre>
+      </div>
+      <div class="col">
+        <div class="col-head"><span class="pill pill-b">B · opus-4-8</span> <span class="meta">82/52 tok · 1.4s · $0.00171 · judge <strong>1.00</strong></span></div>
+        <pre class="out"><span class="add">Every</span> model release <span class="add">quietly</span> <span class="add">shifts</span> behavior, cost, and <span class="add">parameters—forcing</span> teams to re-benchmark their <span class="add">own</span> prompts <span class="add">after</span> <span class="add">each</span> <span class="add">drop</span> <span class="add">just</span> to <span class="add">see</span> <span class="add">what</span> <span class="add">changed.</span></pre>
+      </div>
+    </div>
+    <div class="judge-reason">judge: Single accurate sentence, 136 characters, plain text, no preamble, faithfully summarizes the source material.</div>
+  </div>
+  </section>
+</main>
+
+<footer>
+  Generated with <strong>lockstep</strong> · open-source prompt-CI · 2026-05-31T17:02:17.117Z
+</footer>
+</div>
+
+<script>
+// Toggle word-diff highlight on/off for clean screenshots (press "d").
+document.addEventListener('keydown',function(e){
+  if(e.key==='d'){document.body.classList.toggle('no-diff');}
+});
+</script>
+</body>
+</html>

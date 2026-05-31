@@ -1,0 +1,7 @@
+# Normalize line endings — repo is LF, checkout native.
+* text=auto eol=lf
+
+# Generated / binary-ish artifacts: leave untouched.
+*.png binary
+*.gif binary
+package-lock.json -text

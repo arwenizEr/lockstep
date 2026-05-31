@@ -1,0 +1,30 @@
+# A small, realistic suite: structured extraction, classification, and an
+# open-ended summary. Mix of strict assertions (Tier-1) and rubrics (Tier-2
+# judge) so the report shows OK / DRIFTED / cost + latency deltas.
+
+- id: extract-invoice
+  prompt: "Extract vendor, total, and currency as JSON from this line: {{input}}"
+  system: "You are a precise extraction engine. Output only minified JSON, no prose, no code fences."
+  inputs:
+    - "Invoice from Acme Corp — amount due 1240.00 USD, net 30."
+    - "BILLED: GlobalHost Ltd  EUR 89.99  (monthly hosting)"
+  assert:
+    - { type: json_valid }
+    - { type: json_has_keys, keys: [vendor, total, currency] }
+  rubric: "Did it extract vendor, total, and currency correctly with no hallucinated fields?"
+
+- id: classify-sentiment
+  prompt: "Classify the sentiment of this review as exactly one word — positive, negative, or neutral: {{input}}"
+  system: "Reply with only one lowercase word."
+  inputs:
+    - "Honestly the best purchase I've made all year, works flawlessly."
+    - "It arrived broken and support never replied."
+  assert:
+    - { type: regex, value: '^(positive|negative|neutral)\.?$' }
+  rubric: "Is the single-word sentiment label correct for the review?"
+
+- id: summarize-tweet
+  prompt: "Summarize this in one tweet-length sentence (<=200 chars), plain text: {{input}}"
+  inputs:
+    - "Every model release silently re-tunes behavior, cost, and parameters, so teams have to re-benchmark their own prompts after each drop to know what changed."
+  rubric: "Is it a single accurate sentence under 200 characters with no preamble?"

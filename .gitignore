@@ -1,0 +1,20 @@
+# deps & build
+node_modules/
+dist/
+
+# stray compiled output next to .ts source (must never be committed — shadows source)
+core/**/*.js
+cli/**/*.js
+tests/_*
+
+# secrets
+.env
+.env.*
+!.env.example
+
+# local run data & ad-hoc reports (the committed demo lives in examples/, not here)
+.lockstep/
+.e2e/
+lockstep-report.html
+
+*.log
