@@ -7,7 +7,12 @@ export const AssertSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("json_valid") }),
   z.object({ type: z.literal("json_has_keys"), keys: z.array(z.string()).min(1) }),
   z.object({ type: z.literal("contains"), value: z.string() }),
+  z.object({ type: z.literal("not_contains"), value: z.string() }),
+  z.object({ type: z.literal("icontains"), value: z.string() }),
+  z.object({ type: z.literal("equals"), value: z.string() }),
   z.object({ type: z.literal("regex"), value: z.string() }),
+  z.object({ type: z.literal("max_length"), value: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("min_length"), value: z.number().int().nonnegative() }),
   z.object({ type: z.literal("json_path"), path: z.string(), equals: z.unknown().optional() }),
 ]);
 

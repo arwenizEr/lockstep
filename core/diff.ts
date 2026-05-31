@@ -136,6 +136,46 @@ export function runAssertion(assertion: Assertion, output: string): AssertionRes
         detail: pass ? undefined : `does not contain "${assertion.value}"`,
       };
     }
+    case "not_contains": {
+      const pass = !output.includes(assertion.value);
+      return {
+        type: "not_contains",
+        pass,
+        detail: pass ? undefined : `should not contain "${assertion.value}"`,
+      };
+    }
+    case "icontains": {
+      const pass = output.toLowerCase().includes(assertion.value.toLowerCase());
+      return {
+        type: "icontains",
+        pass,
+        detail: pass ? undefined : `does not contain (case-insensitive) "${assertion.value}"`,
+      };
+    }
+    case "equals": {
+      const pass = output.trim() === assertion.value.trim();
+      return {
+        type: "equals",
+        pass,
+        detail: pass ? undefined : "output does not equal expected value",
+      };
+    }
+    case "max_length": {
+      const pass = output.length <= assertion.value;
+      return {
+        type: "max_length",
+        pass,
+        detail: pass ? undefined : `length ${output.length} > max ${assertion.value}`,
+      };
+    }
+    case "min_length": {
+      const pass = output.length >= assertion.value;
+      return {
+        type: "min_length",
+        pass,
+        detail: pass ? undefined : `length ${output.length} < min ${assertion.value}`,
+      };
+    }
     case "regex": {
       let re: RegExp;
       try {
