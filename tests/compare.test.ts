@@ -98,6 +98,18 @@ describe("compareRuns", () => {
     expect(rep.summary.totalCostB).toBeCloseTo(0.007, 9);
   });
 
+  it("excludes one-sided cases from cost totals (only paired cells count)", () => {
+    const a = runFile("a", "ma", [result({ caseId: "c1", cost: 0.001 })]);
+    const b = runFile("b", "mb", [
+      result({ caseId: "c1", cost: 0.002 }),
+      result({ caseId: "extra", cost: 0.005 }), // only in B
+    ]);
+    const rep = compareRuns(a, b);
+    expect(rep.summary.broken).toBe(1); // the one-sided "extra"
+    expect(rep.summary.totalCostA).toBeCloseTo(0.001, 9);
+    expect(rep.summary.totalCostB).toBeCloseTo(0.002, 9); // 0.005 excluded
+  });
+
   it("selects target explicitly when run has several", () => {
     const a: RunFile = {
       ...runFile("x", "mx", [result({ targetId: "x" })]),

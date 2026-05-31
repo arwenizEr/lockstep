@@ -108,16 +108,18 @@ export function compareRuns(
     const [caseId, idxStr] = key.split("#");
     const inputIndex = parseInt(idxStr, 10);
 
-    if (a) summary.totalCostA += a.cost;
-    if (b) summary.totalCostB += b.cost;
-
     if (!a || !b) {
-      // Missing on one side — treat as broken pair.
+      // Missing on one side — treat as broken pair. Excluded from the cost
+      // totals so the headline cost reflects only the cells actually compared
+      // (a one-sided case has no counterpart to compare against).
       summary.total++;
       summary.broken++;
       pairs.push({ caseId, inputIndex, a, b });
       continue;
     }
+
+    summary.totalCostA += a.cost;
+    summary.totalCostB += b.cost;
 
     const cell = compareCell(
       {
