@@ -1,23 +1,41 @@
 import type { Provider, RunRequest, RunResult } from "./types.js";
 
+const DEFAULT_TIMEOUT_MS = 60_000;
+
+/** Per-request timeout (ms). Env override, else 60s. Guards against hung sockets. */
+function timeoutMs(): number {
+  const raw = process.env.LOCKSTEP_HTTP_TIMEOUT_MS;
+  const n = raw ? parseInt(raw, 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_TIMEOUT_MS;
+}
+
 /**
  * OpenAI adapter. Implemented against the Chat Completions API via fetch so we
  * don't pull in the SDK just for one call path. Same Provider interface as
  * Anthropic — adding a provider is ~one file.
  */
+export interface OpenAIOptions {
+  baseUrl?: string;
+  /** Injectable fetch — defaults to global fetch. Used by tests. */
+  fetchImpl?: typeof fetch;
+}
+
 export class OpenAIProvider implements Provider {
   id = "openai";
   private apiKey: string;
   private baseUrl: string;
+  private fetchImpl: typeof fetch;
 
-  constructor(apiKey = process.env.OPENAI_API_KEY) {
+  constructor(apiKey = process.env.OPENAI_API_KEY, opts: OpenAIOptions = {}) {
     if (!apiKey) {
       throw new Error(
         "OPENAI_API_KEY is not set. Export it before running openai targets."
       );
     }
     this.apiKey = apiKey;
-    this.baseUrl = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
+    this.baseUrl =
+      opts.baseUrl ?? process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
+    this.fetchImpl = opts.fetchImpl ?? fetch;
   }
 
   async run(req: RunRequest): Promise<RunResult> {
@@ -36,14 +54,29 @@ export class OpenAIProvider implements Provider {
     if (req.effort) body.reasoning_effort = req.effort;
 
     const start = Date.now();
-    const resp = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify(body),
-    });
+    const ms = timeoutMs();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    let resp: Response;
+    try {
+      resp = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (e) {
+      // Abort (timeout) has no HTTP status, so withRetry treats it as retryable.
+      if ((e as Error).name === "AbortError") {
+        throw new Error(`OpenAI request timed out after ${ms}ms`);
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
     const latencyMs = Date.now() - start;
 
     if (!resp.ok) {
