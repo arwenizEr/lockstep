@@ -11,6 +11,7 @@ import { loadCases } from "../core/cases.js";
 import { run, writeRunFile, type RunFile, type CaseResult } from "../core/runner.js";
 import { loadRunFile, compareRuns, type CompareReport } from "../core/compare.js";
 import { renderReport } from "../core/report.js";
+import { evaluateGate } from "../core/gate.js";
 
 const program = new Command();
 
@@ -129,18 +130,28 @@ program
   .description("Diff two runs per case: similarity, cost/latency delta, status")
   .option("--a-target <id>", "which target in run A to compare")
   .option("--b-target <id>", "which target in run B to compare")
+  .option("--json", "print the comparison as JSON to stdout (for scripting)", false)
+  .option(
+    "--fail-on <statuses>",
+    "exit non-zero if any pair has these statuses (comma-separated: drifted,broken,pricier,slower,cheaper,faster)"
+  )
   .action(
     (
       runA: string | undefined,
       runB: string | undefined,
-      opts: { aTarget?: string; bTarget?: string }
+      opts: { aTarget?: string; bTarget?: string; json: boolean; failOn?: string }
     ) => {
       const [pa, pb] = resolveRunPair(runA, runB);
       const report = compareRuns(loadRunFile(pa), loadRunFile(pb), {
         aTargetId: opts.aTarget,
         bTargetId: opts.bTarget,
       });
-      printCompare(report);
+      if (opts.json) {
+        console.log(JSON.stringify(report, null, 2));
+      } else {
+        printCompare(report);
+      }
+      applyGate(report, opts.failOn, opts.json);
     }
   );
 
@@ -183,6 +194,23 @@ program
 // ---------------------------------------------------------------------------
 function collect(value: string, prev: string[]): string[] {
   return prev.concat([value]);
+}
+
+/**
+ * CI gate: if --fail-on matched any status, report it and set a non-zero exit.
+ * When `quiet` (e.g. --json mode) the pass line is suppressed and the fail line
+ * goes to stderr so stdout stays machine-readable.
+ */
+function applyGate(report: CompareReport, failOn?: string, quiet = false): void {
+  if (!failOn) return;
+  const gate = evaluateGate(report, failOn.split(","));
+  if (gate.failed) {
+    const detail = gate.tripped.map((t) => `${t.count} ${t.status}`).join(", ");
+    console.error(`\n  x gate failed (--fail-on ${failOn}): ${detail}`);
+    process.exitCode = 1;
+  } else if (!quiet) {
+    console.log(`\n  ok gate passed (--fail-on ${failOn})`);
+  }
 }
 
 /** List run files newest-first. */
