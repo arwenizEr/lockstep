@@ -18,11 +18,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourname/lockstep.git"
+    "url": "https://github.com/arwenizEr/lockstep.git"
   },
-  "homepage": "https://github.com/yourname/lockstep#readme",
+  "homepage": "https://github.com/arwenizEr/lockstep#readme",
   "bugs": {
-    "url": "https://github.com/yourname/lockstep/issues"
+    "url": "https://github.com/arwenizEr/lockstep/issues"
   },
   "bin": {
     "lockstep": "./dist/cli/index.js"
@@ -34,8 +34,10 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsx cli/index.ts",
     "lockstep": "tsx cli/index.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
   },
   "engines": {
     "node": ">=20"

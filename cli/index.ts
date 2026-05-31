@@ -315,7 +315,7 @@ function printTable(headers: string[], rows: string[][]): void {
 // templates
 // ---------------------------------------------------------------------------
 const CONFIG_TEMPLATE = `# lockstep.yaml — prompt-CI config
-# Docs: https://github.com/yourname/lockstep
+# Docs: https://github.com/arwenizEr/lockstep
 
 targets:
   - id: opus-4-8
