@@ -36,17 +36,31 @@ function thinkingOff(effort?: string): boolean {
   return e === "none" || e === "off";
 }
 
+/** Minimal shape of the Anthropic client we depend on (injectable for tests). */
+export interface AnthropicLike {
+  messages: { create: (params: unknown) => Promise<Anthropic.Message> };
+}
+
+export interface AnthropicOptions {
+  /** Injectable client — defaults to a real Anthropic SDK client. Used by tests. */
+  client?: AnthropicLike;
+}
+
 export class AnthropicProvider implements Provider {
   id = "anthropic";
-  private client: Anthropic;
+  private client: AnthropicLike;
 
-  constructor(apiKey = process.env.ANTHROPIC_API_KEY) {
+  constructor(apiKey = process.env.ANTHROPIC_API_KEY, opts: AnthropicOptions = {}) {
+    if (opts.client) {
+      this.client = opts.client;
+      return;
+    }
     if (!apiKey) {
       throw new Error(
         "ANTHROPIC_API_KEY is not set. Export it (or put it in a .env file) before running anthropic targets."
       );
     }
-    this.client = new Anthropic({ apiKey });
+    this.client = new Anthropic({ apiKey }) as unknown as AnthropicLike;
   }
 
   async run(req: RunRequest): Promise<RunResult> {
@@ -98,9 +112,19 @@ export class AnthropicProvider implements Provider {
     // target for labeling only — sending it raw would 400.
 
     const start = Date.now();
-    const resp = await this.client.messages.create(
-      params as unknown as Anthropic.MessageCreateParamsNonStreaming
-    );
+    let resp: Anthropic.Message;
+    try {
+      resp = await this.client.messages.create(params);
+    } catch (e) {
+      // Normalize + length-bound the error so it matches the OpenAI adapter and
+      // doesn't bloat the persisted run file. Preserve .status for retry logic.
+      const err = e as Error & { status?: number };
+      const bounded = new Error(
+        `Anthropic${err.status ? ` ${err.status}` : ""}: ${(err.message ?? "request failed").slice(0, 500)}`
+      ) as Error & { status?: number };
+      bounded.status = err.status;
+      throw bounded;
+    }
     const latencyMs = Date.now() - start;
 
     // Concatenate text blocks; thinking blocks are excluded from output text.
