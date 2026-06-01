@@ -260,6 +260,7 @@ the slow drift a two-run `compare` can't see.
 ```bash
 lockstep trend                 # first target, all runs
 lockstep trend --target opus --last 10
+lockstep trend --html -o trend.html   # self-contained HTML report (inline SVG charts)
 ```
 
 ```text

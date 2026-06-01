@@ -138,6 +138,15 @@ describe("CLI (built binary, mock provider)", () => {
     expect(r.stdout).toContain("trend for");
   });
 
+  it("trend --html writes a self-contained report", () => {
+    const r = lockstep(["trend", "--html", "-o", "trend.html"]);
+    expect(r.status).toBe(0);
+    const html = readFileSync(join(dir, "trend.html"), "utf8");
+    expect(html).toContain("<!doctype html>");
+    expect(html).toContain("<svg");
+    expect(html).not.toMatch(/src=["']https?:/i);
+  });
+
   it("baseline set / show / clear round-trips and pins compare", () => {
     const set = lockstep(["baseline", "set"]);
     expect(set.status).toBe(0);

@@ -29,6 +29,7 @@ import { evaluateBudget, parseBudget } from "../core/budget.js";
 import { FileCache } from "../core/cache.js";
 import { setBaseline, getBaseline, clearBaseline } from "../core/baseline.js";
 import { computeTrend, sparkline } from "../core/trend.js";
+import { renderTrendReport } from "../core/trend-report.js";
 import { OpenAIEmbedder, buildSemanticOverrides, type SemanticPair } from "../core/embed.js";
 import { judgePairwise } from "../core/judge.js";
 import { debounce, watchPaths } from "../core/watch.js";
@@ -504,7 +505,9 @@ program
   .description("Show how a target's similarity, cost, and latency move across many runs")
   .option("--target <id>", "which target to track (default: first target in each run)")
   .option("--last <n>", "only the N most recent runs")
-  .action((opts: { target?: string; last?: string }) => {
+  .option("--html", "write a self-contained HTML trend report instead of printing", false)
+  .option("-o, --out <file>", "output path for --html (default lockstep-trend.html)")
+  .action((opts: { target?: string; last?: string; html: boolean; out?: string }) => {
     const paths = listRuns(); // newest first
     if (paths.length < 2) {
       console.log("Need at least two runs to show a trend. Run `lockstep run` again.");
@@ -525,6 +528,16 @@ program
     const trend = computeTrend(runs, opts.target);
     if (trend.points.length < 2) {
       console.log(`Not enough comparable runs for target "${trend.target}".`);
+      return;
+    }
+
+    if (opts.html) {
+      const out = opts.out ?? "lockstep-trend.html";
+      const outPath = isAbsolute(out) ? out : resolve(process.cwd(), out);
+      writeFileSync(outPath, renderTrendReport(trend, new Date().toISOString()), "utf8");
+      console.log(
+        `Wrote HTML trend -> ${outPath}\n  ${trend.target} · ${trend.points.length} runs · ${trend.cases.length} cases`
+      );
       return;
     }
 
