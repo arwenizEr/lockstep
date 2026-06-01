@@ -111,6 +111,7 @@ lockstep compare
 | `lockstep report [A] [B]` | Generate the report. Flags: `--format <html\|md>`, `-o <file>`, `--a-target`, `--b-target`, `--fail-on <statuses>`, `--semantic`. |
 | `lockstep trend` | Show how a target's similarity, cost, and latency move across many saved runs (sparklines). Flags: `--target <id>`, `--last <n>`. |
 | `lockstep baseline set\|show\|clear` | Pin a golden run that `compare`/`report` diff against by default. `set [run]` defaults to the newest run; `--target <id>` pins a target. |
+| `lockstep doctor` | Check which provider credentials are set and which configured targets are runnable. `--strict` exits non-zero if any isn't. |
 | `lockstep list` | List saved runs in `.lockstep/runs/` (newest first). |
 
 Two targets within a single run can be compared by passing the same run file
@@ -241,7 +242,7 @@ Keys: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` (or `GOOGLE_API_KE
 
 ```bash
 npm install
-npm test           # 260 vitest tests (offline; includes a CLI smoke test, no API key required)
+npm test           # 268 vitest tests (offline; includes a CLI smoke test, no API key required)
 npm run dev -- run # run the CLI from source via tsx
 npm run build      # type-check and compile to dist/
 ```

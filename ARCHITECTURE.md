@@ -7,7 +7,7 @@ that touches the outside world is a thin provider adapter behind a single-method
 interface.
 
 ```
-cli/index.ts                 commands: init · run · ask · compare · report · trend · baseline · list
+cli/index.ts                 commands: init · run · ask · compare · report · trend · baseline · doctor · list
 core/
   config.ts                  load and zod-validate lockstep.yaml (incl. redact patterns)
   cases.ts                   load + validate cases (.yaml); prompt | messages; inputs_file
@@ -22,6 +22,7 @@ core/
   compare.ts                 pair two runs by case and aggregate               (pure)
   trend.ts                   many-run trend + sparklines                       (pure)
   baseline.ts                pin/read/clear a golden run pointer
+  doctor.ts                  provider-credential + target-runnability check     (pure)
   gate.ts                    the --fail-on CI gate decision                    (pure)
   judge.ts                   Tier-2 LLM-as-judge: absolute score + pairwise (opt-in)
   redact.ts                  scrub secrets/PII from a saved run                (pure)

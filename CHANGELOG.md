@@ -13,6 +13,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`/api/chat`) adapter, each behind the same `Provider` interface and unit-tested
   with an injected `fetch`. Registry now exposes anthropic, openai, gemini,
   openrouter, ollama, mock.
+- **`lockstep doctor`** — checks which provider credentials are set and which
+  configured targets are runnable before a run; `--strict` exits non-zero if any
+  target is missing its key (a fast pre-CI sanity check).
 - **Datasets** — a case can pull `{{input}}` values from `inputs_file`
   (`.jsonl`/`.json`/`.csv`/`.txt`) instead of an inline list.
 - **Multi-turn cases** — a case can script a `messages` conversation instead of a

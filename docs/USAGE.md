@@ -281,6 +281,33 @@ run — so the suite is always measured against a known-good snapshot.
 
 ---
 
+## `lockstep doctor` — check readiness before a run
+
+```bash
+lockstep doctor          # report; exits 0
+lockstep doctor --strict # exit 1 if any configured target isn't runnable (pre-CI)
+```
+
+```text
+  providers:
+  provider    credential                       status
+  ----------  -------------------------------  -------
+  anthropic   ANTHROPIC_API_KEY                ready
+  gemini      GEMINI_API_KEY / GOOGLE_API_KEY  MISSING
+  ollama      (keyless)                        ready
+
+  targets:
+  target  provider   model            runnable
+  ------  ---------  ---------------  --------------------------
+  opus    anthropic  claude-opus-4-8  yes
+  gemini  gemini     gemini-2.5-pro   NO — set GEMINI_API_KEY or GOOGLE_API_KEY
+  local   ollama     llama3.2         yes
+
+  x some targets are not runnable (see above).
+```
+
+---
+
 ## `lockstep list` — saved runs
 
 ```bash
