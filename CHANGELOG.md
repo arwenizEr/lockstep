@@ -8,7 +8,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-<<<<<<< HEAD
 - **JUnit report** now emits a `<system-out>` per testcase with the (truncated)
   model output plus tokens/latency/cost and any judge score, so a CI test viewer
   shows what each prompt actually returned next to its pass/fail. BROKEN cells
@@ -26,6 +25,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`run --fail-on-assert`** — exit non-zero if any case is BROKEN or fails an
   assertion, so a single `run` gates CI without needing a second run to compare
   (complements `compare --fail-on`). Backed by a pure `runFailures()`.
+- **Case `defaults:`** — a `defaults:` block in `lockstep.yaml` supplies a shared
+  `system` / `rubric` (used only where a case omits them) and `assert` entries
+  (prepended to each case's own), so common settings live in one place.
 - **Datasets** — a case can pull `{{input}}` values from `inputs_file`
   (`.jsonl`/`.json`/`.csv`/`.txt`) instead of an inline list.
 - **Multi-turn cases** — a case can script a `messages` conversation instead of a

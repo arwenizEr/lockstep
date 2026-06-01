@@ -169,6 +169,18 @@ JSON-Schema subset), `numeric` (extract a number and check `min`/`max`/`equals`
 with `tolerance`), `contains`, `not_contains`, `icontains`, `equals`, `regex`,
 `max_length`, `min_length`, `json_path`.
 
+Repeating `system` / `rubric` / `assert` across cases? Set them once under
+`defaults:` in `lockstep.yaml` — `system` and `rubric` fill in only where a case
+omits them, and default assertions are prepended to each case's own:
+
+```yaml
+# lockstep.yaml
+defaults:
+  system: "Output only JSON."
+  assert:
+    - { type: json_valid }
+```
+
 ### Datasets and multi-turn
 
 Inputs can come from a file instead of an inline list, and a case can script a

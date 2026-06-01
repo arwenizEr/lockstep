@@ -61,8 +61,30 @@ export type Assertion = z.infer<typeof AssertSchema>;
 export type CaseMessage = z.infer<typeof CaseMessageSchema>;
 export type Case = z.infer<typeof CaseSchema>;
 
+/** Suite-wide defaults merged into each case (see config `defaults:`). */
+export interface CaseDefaults {
+  system?: string;
+  rubric?: string;
+  assert?: Assertion[];
+}
+
+/**
+ * Merge suite defaults into one case: `system`/`rubric` fill in only when the
+ * case omits them; default assertions are prepended to the case's own (so a
+ * shared `json_valid` runs before case-specific checks). Pure.
+ */
+export function applyDefaults(case_: Case, defaults?: CaseDefaults): Case {
+  if (!defaults) return case_;
+  return {
+    ...case_,
+    system: case_.system ?? defaults.system,
+    rubric: case_.rubric ?? defaults.rubric,
+    assert: [...(defaults.assert ?? []), ...case_.assert],
+  };
+}
+
 /** A case file holds one case or an array of cases. */
-export function loadCases(casesDir: string): Case[] {
+export function loadCases(casesDir: string, defaults?: CaseDefaults): Case[] {
   if (!existsSync(casesDir) || !statSync(casesDir).isDirectory()) {
     throw new Error(`cases_dir not found: ${casesDir}`);
   }
@@ -118,7 +140,7 @@ export function loadCases(casesDir: string): Case[] {
         case_.inputs = merged.length > 0 ? merged : [""];
       }
 
-      cases.push(case_);
+      cases.push(applyDefaults(case_, defaults));
     }
   }
   if (cases.length === 0) {

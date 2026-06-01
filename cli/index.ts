@@ -115,7 +115,7 @@ program
     }) => {
       if (opts.dryRun) {
         const loaded = loadConfig();
-        const cases = loadCases(loaded.casesDir);
+        const cases = loadCases(loaded.casesDir, loaded.config.defaults);
         const plan = planRun(loaded.config, cases, opts.target);
         console.log(`Dry run — ${plan.totalCells} cell(s), no providers called:\n`);
         printTable(
@@ -134,7 +134,7 @@ program
       // edits. `watching` suppresses the budget exit code (the process lives on).
       const once = async (watching: boolean): Promise<void> => {
       const loaded = loadConfig();
-      const cases = loadCases(loaded.casesDir);
+      const cases = loadCases(loaded.casesDir, loaded.config.defaults);
       const concurrency = Math.max(1, parseInt(opts.concurrency, 10) || 4);
 
       const total =
@@ -846,6 +846,13 @@ cases_dir: ./cases
 pricing:
   claude-opus-4-8: { in: 5, out: 25 }
   claude-opus-4-7: { in: 5, out: 25 }
+
+# Optional: shared case defaults. system/rubric fill in only where a case omits
+# them; default assertions are prepended to each case's own.
+# defaults:
+#   system: "Output only JSON."
+#   assert:
+#     - { type: json_valid }
 
 diff:
   similarity_threshold: 0.9   # below this => flag DRIFTED

@@ -10,7 +10,7 @@ interface.
 cli/index.ts                 commands: init · run · ask · compare · report · trend · baseline · list
 core/
   config.ts                  load and zod-validate lockstep.yaml (incl. redact patterns)
-  cases.ts                   load + validate cases (.yaml); prompt | messages; inputs_file
+  cases.ts                   load + validate cases (.yaml); prompt | messages; inputs_file; defaults merge
   dataset.ts                 parse inputs_file (.jsonl/.json/.csv/.txt)        (pure)
   env.ts                     zero-dependency .env loader (walks cwd upward)
   runner.ts                  orchestration: matrix run + buildTurns + plan/describe
