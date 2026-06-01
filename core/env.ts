@@ -45,6 +45,11 @@ export function loadDotenv(dir = process.cwd()): void {
       (value.startsWith("'") && value.endsWith("'"))
     ) {
       value = value.slice(1, -1);
+    } else {
+      // Unquoted: strip a trailing inline comment (` #...`). A '#' with no
+      // preceding whitespace is kept (e.g. it may be part of the value).
+      const hash = value.search(/\s#/);
+      if (hash !== -1) value = value.slice(0, hash).trim();
     }
     // Don't overwrite vars already in the real environment.
     if (process.env[key] === undefined) process.env[key] = value;

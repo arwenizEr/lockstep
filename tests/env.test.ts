@@ -14,7 +14,7 @@ describe("loadDotenv", () => {
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
     // restore env keys we may have touched
-    for (const k of ["LS_TEST_A", "LS_TEST_B", "LS_TEST_C", "LS_TEST_QUOTED", "LS_TEST_EXPORT"]) {
+    for (const k of ["LS_TEST_A", "LS_TEST_B", "LS_TEST_C", "LS_TEST_QUOTED", "LS_TEST_EXPORT", "LS_TEST_CMT", "LS_TEST_HASH", "LS_TEST_QHASH"]) {
       if (saved[k] === undefined) delete process.env[k];
       else process.env[k] = saved[k];
     }
@@ -62,5 +62,23 @@ describe("loadDotenv", () => {
 
   it("is a no-op when no .env exists", () => {
     expect(() => loadDotenv(dir)).not.toThrow();
+  });
+
+  it("strips an unquoted trailing inline comment", () => {
+    writeFileSync(join(dir, ".env"), "LS_TEST_CMT=sk-abc # prod key\n");
+    loadDotenv(dir);
+    expect(process.env.LS_TEST_CMT).toBe("sk-abc");
+  });
+
+  it("keeps a # that has no preceding space", () => {
+    writeFileSync(join(dir, ".env"), "LS_TEST_HASH=#ff0000\n");
+    loadDotenv(dir);
+    expect(process.env.LS_TEST_HASH).toBe("#ff0000");
+  });
+
+  it("keeps # inside a quoted value", () => {
+    writeFileSync(join(dir, ".env"), `LS_TEST_QHASH="a # b"\n`);
+    loadDotenv(dir);
+    expect(process.env.LS_TEST_QHASH).toBe("a # b");
   });
 });
