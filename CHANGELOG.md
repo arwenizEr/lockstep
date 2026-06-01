@@ -12,6 +12,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   model output plus tokens/latency/cost and any judge score, so a CI test viewer
   shows what each prompt actually returned next to its pass/fail. BROKEN cells
   keep their `<error>` only.
+- **Markdown report** now includes a `best` column (which target won each case —
+  by judge score, then cost, then latency) and surfaces per-case judge scores +
+  reasons inside the collapsible output blocks, so a PR comment is decision-ready.
 
 ### Added
 

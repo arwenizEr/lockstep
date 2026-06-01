@@ -22,6 +22,33 @@ function badge(statuses: string[] | undefined): string {
   return statuses.join(", ");
 }
 
+/** Compact "which side won" verdict for the Cases table (mirrors the HTML report). */
+function bestTarget(p: CompareReport["pairs"][number]): string {
+  if (!p.cell || !p.a || !p.b) {
+    if (p.a && !p.b) return "A (B missing)";
+    if (p.b && !p.a) return "B (A missing)";
+    return "—";
+  }
+  const c = p.cell;
+  if (c.broken) {
+    const aOk = p.a.status === "OK" && p.a.assertionsPass !== false;
+    const bOk = p.b.status === "OK" && p.b.assertionsPass !== false;
+    if (aOk && !bOk) return "A (B broke)";
+    if (bOk && !aOk) return "B (A broke)";
+    return "neither";
+  }
+  const aj = p.a.judge?.score;
+  const bj = p.b.judge?.score;
+  if (aj !== undefined && bj !== undefined && Math.abs(aj - bj) > 0.05) {
+    return aj > bj ? "A (judge)" : "B (judge)";
+  }
+  if (c.costDelta < 0) return "B (cheaper)";
+  if (c.costDelta > 0) return "A (cheaper)";
+  if (c.latencyDelta < 0) return "B (faster)";
+  if (c.latencyDelta > 0) return "A (faster)";
+  return "tie";
+}
+
 /**
  * Render a comparison as GitHub-flavored Markdown — suitable for pasting into a
  * pull-request comment or a CI job summary. Self-contained, no images. Changed
@@ -56,15 +83,15 @@ export function renderMarkdown(report: CompareReport): string {
 
   lines.push(`## Cases`);
   lines.push("");
-  lines.push(`| case | similarity | Δ cost | Δ latency | status |`);
-  lines.push(`|---|---:|---:|---:|---|`);
+  lines.push(`| case | similarity | Δ cost | Δ latency | status | best |`);
+  lines.push(`|---|---:|---:|---:|---|---|`);
   for (const p of report.pairs) {
     const c = p.cell;
     const sim = c ? `${(c.similarity * 100).toFixed(0)}%` : "—";
     const dCost = c ? fmtSigned(c.costDelta, 6, "") : "—";
     const dLat = c ? fmtSigned(c.latencyDelta, 0, "ms") : "—";
     lines.push(
-      `| \`${cell(p.caseId)}#${p.inputIndex}\` | ${sim} | ${dCost} | ${dLat} | ${cell(badge(c?.statuses))} |`
+      `| \`${cell(p.caseId)}#${p.inputIndex}\` | ${sim} | ${dCost} | ${dLat} | ${cell(badge(c?.statuses))} | ${cell(bestTarget(p))} |`
     );
   }
   lines.push("");
@@ -92,6 +119,12 @@ export function renderMarkdown(report: CompareReport): string {
       lines.push((p.b?.output ?? "(missing)").slice(0, 4000));
       lines.push("```");
       lines.push("");
+      if (p.a?.judge || p.b?.judge) {
+        const fmtJudge = (j?: { score: number; reason: string }) =>
+          j ? `${j.score.toFixed(2)} — ${cell(j.reason)}` : "—";
+        lines.push(`_judge — A: ${fmtJudge(p.a?.judge)} · B: ${fmtJudge(p.b?.judge)}_`);
+        lines.push("");
+      }
       lines.push(`</details>`);
       lines.push("");
     }

@@ -60,4 +60,22 @@ describe("renderMarkdown", () => {
     const m = renderMarkdown(compareRuns(same, same2));
     expect(m).not.toContain("## Changed outputs");
   });
+
+  it("adds a `best` column to the Cases table", () => {
+    expect(md).toMatch(/\| case \| similarity \| Δ cost \| Δ latency \| status \| best \|/);
+    // cheaper/faster/tie verdict for the drifted-but-not-broken pair
+    expect(md).toMatch(/tie|cheaper|faster/);
+  });
+
+  it("shows judge scores in the detail block when present", () => {
+    const ja = runFile("a", "ma", [result({ output: "one", judge: { score: 0.4, reason: "weak" } })]);
+    const jb = runFile("b", "mb", [
+      result({ output: "two totally different", judge: { score: 0.9, reason: "strong" } }),
+    ]);
+    const m = renderMarkdown(compareRuns(ja, jb));
+    expect(m).toContain("judge — A: 0.40");
+    expect(m).toContain("B: 0.90 — strong");
+    // judge gap > 0.05 → best column picks B
+    expect(m).toContain("B (judge)");
+  });
 });
