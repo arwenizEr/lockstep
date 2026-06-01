@@ -117,6 +117,16 @@ show `hit` in the progress line and replay the original latency.
 lockstep run --max-cost 0.50 ; echo "exit: $?"   # exit 1 if the run cost > $0.50
 ```
 
+### `run --fail-on-assert` — gate a single run
+
+Exit non-zero if any case is `BROKEN` or fails an assertion — gates CI from one
+run, no baseline needed (use `compare --fail-on` to gate drift against a prior run).
+
+```bash
+lockstep run --fail-on-assert ; echo "exit: $?"
+# exit: 1   (when a cell broke or an assertion failed)
+```
+
 ### `run --redact` — scrub secrets before sharing
 
 ```bash

@@ -126,6 +126,12 @@ describe("CLI (built binary, mock provider)", () => {
     expect(r.stdout).toMatch(/Redaction: ON/);
   });
 
+  it("run --fail-on-assert passes when assertions hold (mock echoes the prompt)", () => {
+    const r = lockstep(["run", "--fail-on-assert"]);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/run gate passed/);
+  });
+
   it("trend shows movement across runs", () => {
     const r = lockstep(["trend"]);
     expect(r.status).toBe(0);

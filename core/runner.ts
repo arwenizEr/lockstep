@@ -327,6 +327,30 @@ export function describeRun(run: RunFile): RunSummary {
   };
 }
 
+export interface RunFailures {
+  /** Cells that errored (4xx/5xx, timeout, etc.). */
+  broken: number;
+  /** OK cells whose assertions failed. */
+  assertionFailed: number;
+  /** broken + assertionFailed. */
+  total: number;
+}
+
+/**
+ * Count failing cells in a run: BROKEN results plus OK results with a failing
+ * assertion. Powers `run --fail-on-assert`, so a single run can gate CI without
+ * needing a second run to compare. Pure.
+ */
+export function runFailures(run: RunFile): RunFailures {
+  let broken = 0;
+  let assertionFailed = 0;
+  for (const r of run.results) {
+    if (r.status === "BROKEN") broken++;
+    else if (r.assertionsPass === false) assertionFailed++;
+  }
+  return { broken, assertionFailed, total: broken + assertionFailed };
+}
+
 export interface RunPlan {
   perTarget: { id: string; model: string; cells: number; priced: boolean }[];
   totalCells: number;
