@@ -21,6 +21,10 @@ lockstep ask --file ./prompt.txt
 cat prompt.txt | lockstep ask
 ```
 
+By default it prints the comparison table only (the full run, including every
+model's output, is saved to `.lockstep/runs/`). Pass `--output` to also print
+each model's full answer; failed targets always show their error.
+
 ```text
 Asking 2 target(s)...
 
@@ -29,16 +33,13 @@ Asking 2 target(s)...
   gpt-4o-mini  gpt-4o-mini      6/6         $0.00000  90ms     OK
   opus         claude-opus-4-8  6/6         $0.00018  90ms     OK
 
--- gpt-4o-mini (gpt-4o-mini) --------
-Reply with the single word: ready
-
--- opus (claude-opus-4-8) --------
-Reply with the single word: ready
-
 cheapest: gpt-4o-mini ($0.0000) · fastest: gpt-4o-mini (90ms)
+
+outputs saved — pass --output to print them, or use `lockstep report`.
 ```
 
-Flags: `--system <text>`, `-t, --target <id>` (repeatable), `-c, --concurrency <n>`.
+Flags: `--output`, `--system <text>`, `-t, --target <id>` (repeatable),
+`-c, --concurrency <n>`.
 
 To run against the whole field at once, use the ready-made
 [`examples/all-models.yaml`](../examples/all-models.yaml) — every current

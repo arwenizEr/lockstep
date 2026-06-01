@@ -169,10 +169,17 @@ program
   .option("--system <text>", "optional system prompt")
   .option("-t, --target <id>", "limit to this target id (repeatable)", collect, [] as string[])
   .option("-c, --concurrency <n>", "max concurrent requests", "4")
+  .option("--output", "also print each model's full output (default: table only)", false)
   .action(
     async (
       prompt: string | undefined,
-      opts: { file?: string; system?: string; target: string[]; concurrency: string }
+      opts: {
+        file?: string;
+        system?: string;
+        target: string[];
+        concurrency: string;
+        output: boolean;
+      }
     ) => {
       const fileText = opts.file
         ? readFileSync(isAbsolute(opts.file) ? opts.file : resolve(process.cwd(), opts.file), "utf8")
@@ -209,7 +216,7 @@ program
         concurrency,
       });
       writeRunFile(loaded.baseDir, runFile);
-      printAsk(runFile);
+      printAsk(runFile, opts.output);
     }
   );
 
@@ -423,7 +430,7 @@ function fmtSigned(n: number, digits: number, prefix = "", suffix = ""): string 
   return `${sign}${prefix}${Math.abs(n).toFixed(digits)}${suffix}`;
 }
 
-function printAsk(runFile: RunFile): void {
+function printAsk(runFile: RunFile, showOutput: boolean): void {
   const rows = runFile.results.map((r) => [
     r.targetId,
     r.model,
@@ -435,8 +442,13 @@ function printAsk(runFile: RunFile): void {
   printTable(["target", "model", "tok in/out", "cost", "latency", "status"], rows);
 
   for (const r of runFile.results) {
-    console.log(`\n-- ${r.targetId} (${r.model}) ` + "-".repeat(8));
-    console.log(r.status === "OK" ? r.output.trim() : `BROKEN: ${r.error ?? ""}`);
+    if (r.status !== "OK") {
+      // Always surface failures so a BROKEN target isn't silent.
+      console.log(`\n-- ${r.targetId} BROKEN -- ${r.error ?? ""}`);
+    } else if (showOutput) {
+      console.log(`\n-- ${r.targetId} (${r.model}) ` + "-".repeat(8));
+      console.log(r.output.trim());
+    }
   }
 
   const ok = runFile.results.filter((r) => r.status === "OK");
@@ -447,6 +459,9 @@ function printAsk(runFile: RunFile): void {
       `\ncheapest: ${cheapest.targetId} (${fmtUsd(cheapest.cost)}) · ` +
         `fastest: ${fastest.targetId} (${fastest.latencyMs}ms)`
     );
+  }
+  if (!showOutput) {
+    console.log("\noutputs saved — pass --output to print them, or use `lockstep report`.");
   }
 }
 
