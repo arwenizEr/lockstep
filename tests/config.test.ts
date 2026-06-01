@@ -37,6 +37,24 @@ describe("loadConfig", () => {
     expect(loaded.config.diff.similarity_threshold).toBe(0.9);
   });
 
+  it("parses a case `defaults:` block (system/rubric/assert)", () => {
+    const p = write(
+      "with-defaults.yaml",
+      `targets:\n  - { id: m, provider: mock, model: mock-1 }\ndefaults:\n  system: "Output only JSON."\n  assert:\n    - { type: json_valid }\n`
+    );
+    const loaded = loadConfig(p);
+    expect(loaded.config.defaults?.system).toBe("Output only JSON.");
+    expect(loaded.config.defaults?.assert).toEqual([{ type: "json_valid" }]);
+  });
+
+  it("rejects an invalid default assertion", () => {
+    const p = write(
+      "bad-defaults.yaml",
+      `targets:\n  - { id: m, provider: mock, model: mock-1 }\ndefaults:\n  assert:\n    - { type: not_a_real_assertion }\n`
+    );
+    expect(() => loadConfig(p)).toThrow(/Invalid lockstep\.yaml/);
+  });
+
   it("throws a helpful error when the file is missing", () => {
     expect(() => loadConfig(join(dir, "nope.yaml"))).toThrow(/Config not found/);
   });

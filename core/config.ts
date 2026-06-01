@@ -3,6 +3,18 @@ import { resolve, isAbsolute, dirname } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 import { isKnownProvider, PROVIDER_IDS } from "./providers/registry.js";
+import { AssertSchema } from "./cases.js";
+
+/**
+ * Shared case defaults. Applied per case at load time: `system`/`rubric` fill in
+ * only when a case omits them; `assert` entries are prepended to each case's own.
+ * Lets a suite set "Output only JSON" + a json_valid assertion once.
+ */
+export const CaseDefaultsSchema = z.object({
+  system: z.string().optional(),
+  rubric: z.string().optional(),
+  assert: z.array(AssertSchema).default([]),
+});
 
 export const TargetSchema = z.object({
   id: z.string().min(1),
@@ -40,6 +52,8 @@ export const ConfigSchema = z.object({
    * pattern turns redaction on (built-ins included); see `core/redact.ts`.
    */
   redact: z.array(z.string()).default([]),
+  /** Shared case defaults (system/rubric/assert) merged into every case at load. */
+  defaults: CaseDefaultsSchema.optional(),
 });
 
 export type Target = z.infer<typeof TargetSchema>;

@@ -8,6 +8,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Case `defaults:`** — a `defaults:` block in `lockstep.yaml` supplies a shared
+  `system` / `rubric` (used only where a case omits them) and `assert` entries
+  (prepended to each case's own), so common settings live in one place.
 - **Datasets** — a case can pull `{{input}}` values from `inputs_file`
   (`.jsonl`/`.json`/`.csv`/`.txt`) instead of an inline list.
 - **Multi-turn cases** — a case can script a `messages` conversation instead of a

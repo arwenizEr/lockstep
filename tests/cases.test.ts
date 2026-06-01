@@ -2,7 +2,8 @@ import { describe, it, expect, afterAll } from "vitest";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { loadCases } from "../core/cases.js";
+import { loadCases, applyDefaults } from "../core/cases.js";
+import type { Case } from "../core/cases.js";
 
 const dir = mkdtempSync(join(tmpdir(), "lockstep-cases-"));
 
@@ -98,5 +99,46 @@ describe("loadCases", () => {
     writeFileSync(join(d, "suite.yaml"), `- id: c1\n  inputs: ["a"]\n`, "utf8");
     expect(() => loadCases(d)).toThrow(/exactly one of/);
     rmSync(d, { recursive: true, force: true });
+  });
+
+  it("merges suite defaults into loaded cases", () => {
+    const d = mkdtempSync(join(tmpdir(), "lockstep-cases-def-"));
+    writeFileSync(
+      join(d, "suite.yaml"),
+      `- id: a\n  prompt: p\n  assert: [ { type: contains, value: x } ]\n- id: b\n  prompt: q\n  system: "own"\n`,
+      "utf8"
+    );
+    const cases = loadCases(d, {
+      system: "shared",
+      rubric: "shared rubric",
+      assert: [{ type: "json_valid" }],
+    });
+    const a = cases.find((c) => c.id === "a")!;
+    const b = cases.find((c) => c.id === "b")!;
+    // a: inherits system + rubric; default assert prepended to its own
+    expect(a.system).toBe("shared");
+    expect(a.rubric).toBe("shared rubric");
+    expect(a.assert.map((x) => x.type)).toEqual(["json_valid", "contains"]);
+    // b: keeps its own system
+    expect(b.system).toBe("own");
+    rmSync(d, { recursive: true, force: true });
+  });
+});
+
+describe("applyDefaults", () => {
+  const base: Case = { id: "c", prompt: "p", inputs: [""], assert: [{ type: "json_valid" }] };
+
+  it("returns the case unchanged when there are no defaults", () => {
+    expect(applyDefaults(base)).toBe(base);
+  });
+
+  it("does not override fields the case already sets", () => {
+    const out = applyDefaults({ ...base, system: "mine" }, { system: "shared" });
+    expect(out.system).toBe("mine");
+  });
+
+  it("prepends default assertions before the case's own", () => {
+    const out = applyDefaults(base, { assert: [{ type: "min_length", value: 1 }] });
+    expect(out.assert.map((a) => a.type)).toEqual(["min_length", "json_valid"]);
   });
 });
