@@ -154,11 +154,13 @@ export function renderReport(report: CompareReport): string {
       const badges = p.cell
         ? p.cell.statuses.map(statusBadge).join(" ")
         : statusBadge("BROKEN");
-      return `<tr>
-        <td class="case">${esc(p.caseId)}<span class="muted">#${p.inputIndex}</span></td>
-        <td>${badges}</td>
-        <td class="r">${sim}</td>
-        <td class="best"><strong>${esc(verdictFor(p))}</strong></td>
+      const simVal = p.cell ? p.cell.similarity : -1;
+      const status = p.cell ? p.cell.statuses.join(",") : "BROKEN";
+      return `<tr data-row="${esc(p.caseId + " #" + p.inputIndex + " " + status)}">
+        <td class="case" data-v="${esc(p.caseId)}">${esc(p.caseId)}<span class="muted">#${p.inputIndex}</span></td>
+        <td data-v="${esc(status)}">${badges}</td>
+        <td class="r" data-v="${simVal}">${sim}</td>
+        <td class="best" data-v="${esc(verdictFor(p))}"><strong>${esc(verdictFor(p))}</strong></td>
       </tr>`;
     })
     .join("\n");
@@ -182,14 +184,14 @@ export function renderReport(report: CompareReport): string {
             : ""
         : "";
       return `<tr>
-        <td class="case">${esc(p.caseId)}<span class="muted">#${p.inputIndex}</span></td>
-        <td class="r">${a ? fmtUsd(a.cost) : "—"}</td>
-        <td class="r">${b ? fmtUsd(b.cost) : "—"}</td>
-        <td class="r ${deltaCls}">${p.cell ? fmtUsd(p.cell.costDelta) : "—"}</td>
-        <td class="r ${deltaCls}">${p.cell ? fmtPct(p.cell.costPct) : "—"}</td>
-        <td class="r">${a ? fmtMs(a.latencyMs) : "—"}</td>
-        <td class="r">${b ? fmtMs(b.latencyMs) : "—"}</td>
-        <td class="r ${latCls}">${p.cell ? (p.cell.latencyDelta >= 0 ? "+" : "−") + fmtMs(Math.abs(p.cell.latencyDelta)) : "—"}</td>
+        <td class="case" data-v="${esc(p.caseId)}">${esc(p.caseId)}<span class="muted">#${p.inputIndex}</span></td>
+        <td class="r" data-v="${a ? a.cost : -1}">${a ? fmtUsd(a.cost) : "—"}</td>
+        <td class="r" data-v="${b ? b.cost : -1}">${b ? fmtUsd(b.cost) : "—"}</td>
+        <td class="r ${deltaCls}" data-v="${p.cell ? p.cell.costDelta : 0}">${p.cell ? fmtUsd(p.cell.costDelta) : "—"}</td>
+        <td class="r ${deltaCls}" data-v="${p.cell?.costPct ?? 0}">${p.cell ? fmtPct(p.cell.costPct) : "—"}</td>
+        <td class="r" data-v="${a ? a.latencyMs : -1}">${a ? fmtMs(a.latencyMs) : "—"}</td>
+        <td class="r" data-v="${b ? b.latencyMs : -1}">${b ? fmtMs(b.latencyMs) : "—"}</td>
+        <td class="r ${latCls}" data-v="${p.cell ? p.cell.latencyDelta : 0}">${p.cell ? (p.cell.latencyDelta >= 0 ? "+" : "−") + fmtMs(Math.abs(p.cell.latencyDelta)) : "—"}</td>
       </tr>`;
     })
     .join("\n");
@@ -223,6 +225,7 @@ export function renderReport(report: CompareReport): string {
     <span class="pill pill-a">A · ${esc(aTargetId)} <span class="muted">${esc(aModel)}</span></span>
     <span class="pill pill-b">B · ${esc(bTargetId)} <span class="muted">${esc(bModel)}</span></span>
     <span class="muted small">drift threshold ${(report.similarityThreshold * 100).toFixed(0)}% similarity</span>
+    <button type="button" id="theme" class="theme-btn" aria-label="Toggle dark mode" title="Toggle dark mode (t)">◐ theme</button>
   </div>
 </header>
 
@@ -230,10 +233,13 @@ export function renderReport(report: CompareReport): string {
   <section>${summaryCards}</section>
 
   <section>
-    <h2>Verdict per case</h2>
+    <div class="sec-head">
+      <h2>Verdict per case</h2>
+      <input type="search" id="filter" class="filter" placeholder="filter cases / statuses…" aria-label="Filter cases">
+    </div>
     <div class="table-wrap">
-    <table>
-      <thead><tr><th>case</th><th>status</th><th class="r">similarity</th><th>best target</th></tr></thead>
+    <table class="sortable" id="verdict-table">
+      <thead><tr><th data-sort="text">case</th><th data-sort="text">status</th><th class="r" data-sort="num">similarity</th><th data-sort="text">best target</th></tr></thead>
       <tbody>${verdictRows}</tbody>
     </table>
     </div>
@@ -242,11 +248,11 @@ export function renderReport(report: CompareReport): string {
   <section>
     <h2>Cost &amp; latency per task</h2>
     <div class="table-wrap">
-    <table>
+    <table class="sortable" id="cost-table">
       <thead><tr>
-        <th>case</th>
-        <th class="r">cost A</th><th class="r">cost B</th><th class="r">Δ cost</th><th class="r">Δ %</th>
-        <th class="r">lat A</th><th class="r">lat B</th><th class="r">Δ lat</th>
+        <th data-sort="text">case</th>
+        <th class="r" data-sort="num">cost A</th><th class="r" data-sort="num">cost B</th><th class="r" data-sort="num">Δ cost</th><th class="r" data-sort="num">Δ %</th>
+        <th class="r" data-sort="num">lat A</th><th class="r" data-sort="num">lat B</th><th class="r" data-sort="num">Δ lat</th>
       </tr></thead>
       <tbody>${costRows}${costTotals}</tbody>
     </table>
@@ -333,10 +339,29 @@ function renderPanel(
 const CSS = `
 :root{
   --bg:#f6f7f9; --surface:#ffffff; --ink:#1a1f29; --ink-soft:#5b6573; --line:#e4e7ec;
+  --subtle:#fafbfc; --out-bg:#fbfcfd; --out-ink:#2b313b;
   --a:#2563eb; --a-soft:#eff4ff; --b:#7c3aed; --b-soft:#f5f0ff;
   --ok:#0f9d58; --ok-soft:#e8f6ee; --drift:#c47d00; --drift-soft:#fbf2dd;
   --broken:#d92d20; --broken-soft:#fdecea; --add:#d6f3e0; --rm:#fbe0de;
   --shadow:0 1px 2px rgba(16,24,40,.04),0 4px 16px rgba(16,24,40,.06);
+}
+/* Dark palette — applied when the OS prefers dark (unless the user forced light)
+   or when the user toggled dark. All inline; no network. */
+@media (prefers-color-scheme:dark){ :root:not(.force-light){
+  --bg:#0d1117; --surface:#161b22; --ink:#e6edf3; --ink-soft:#8b949e; --line:#30363d;
+  --subtle:#1b222b; --out-bg:#0e141b; --out-ink:#c9d1d9;
+  --a:#4493f8; --a-soft:#0d2847; --b:#a371f7; --b-soft:#2d1f47;
+  --ok:#3fb950; --ok-soft:#0f2d1a; --drift:#d29922; --drift-soft:#3a2f05;
+  --broken:#f85149; --broken-soft:#3d1418; --add:#15301f; --rm:#3d1d1d;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.5);
+}}
+:root.force-dark{
+  --bg:#0d1117; --surface:#161b22; --ink:#e6edf3; --ink-soft:#8b949e; --line:#30363d;
+  --subtle:#1b222b; --out-bg:#0e141b; --out-ink:#c9d1d9;
+  --a:#4493f8; --a-soft:#0d2847; --b:#a371f7; --b-soft:#2d1f47;
+  --ok:#3fb950; --ok-soft:#0f2d1a; --drift:#d29922; --drift-soft:#3a2f05;
+  --broken:#f85149; --broken-soft:#3d1418; --add:#15301f; --rm:#3d1d1d;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.5);
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -373,13 +398,13 @@ h2{margin:0;font-size:13px;font-weight:700;text-transform:uppercase;letter-spaci
 table{width:100%;border-collapse:collapse;font-size:14px;}
 th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);white-space:nowrap;}
 tr:last-child td{border-bottom:none;}
-thead th{color:var(--ink-soft);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.06em;background:#fafbfc;}
+thead th{color:var(--ink-soft);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.06em;background:var(--subtle);}
 td.r,th.r{text-align:right;font-variant-numeric:tabular-nums;}
 td.case{font-weight:600;}
 td.case .muted{font-weight:400;margin-left:2px;}
 td.best{color:var(--ink);}
 td.pos{color:var(--ok);} td.neg{color:var(--broken);}
-tr.totals td{font-weight:700;background:#fafbfc;border-top:2px solid var(--line);}
+tr.totals td{font-weight:700;background:var(--subtle);border-top:2px solid var(--line);}
 
 .badge{display:inline-block;padding:3px 9px;border-radius:7px;font-size:11px;font-weight:700;letter-spacing:.02em;}
 .badge-ok{background:var(--ok-soft);color:var(--ok);}
@@ -391,7 +416,7 @@ tr.totals td{font-weight:700;background:#fafbfc;border-top:2px solid var(--line)
 .badge-slower{background:var(--drift-soft);color:var(--drift);}
 
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:16px;}
-.panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);background:#fafbfc;flex-wrap:wrap;}
+.panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--subtle);flex-wrap:wrap;}
 .panel-head .case strong{font-size:15px;}
 .panel-head .case .muted{margin-left:3px;}
 .panel-badges{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
@@ -402,12 +427,26 @@ tr.totals td{font-weight:700;background:#fafbfc;border-top:2px solid var(--line)
 .col-head .meta{font-size:12px;color:var(--ink-soft);}
 .out{white-space:pre-wrap;word-break:break-word;margin:0;
   font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  background:#fbfcfd;border:1px solid var(--line);border-radius:9px;padding:12px;
-  max-height:380px;overflow:auto;color:#2b313b;}
+  background:var(--out-bg);border:1px solid var(--line);border-radius:9px;padding:12px;
+  max-height:380px;overflow:auto;color:var(--out-ink);}
 .out .add{background:var(--add);border-radius:3px;padding:0 1px;}
 .out .rm{background:var(--rm);border-radius:3px;padding:0 1px;}
+.no-diff .out .add,.no-diff .out .rm{background:transparent;}
 .ok-text{color:var(--ok);font-weight:600;} .bad-text{color:var(--broken);font-weight:600;}
-.judge-reason{padding:10px 18px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-soft);font-style:italic;background:#fafbfc;}
+.judge-reason{padding:10px 18px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-soft);font-style:italic;background:var(--subtle);}
+
+.sec-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+.filter{font:inherit;font-size:13px;padding:7px 12px;border:1px solid var(--line);border-radius:9px;
+  background:var(--surface);color:var(--ink);min-width:220px;}
+.filter:focus{outline:2px solid var(--a);outline-offset:1px;}
+.theme-btn{font:inherit;font-size:12px;cursor:pointer;padding:5px 12px;border-radius:999px;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);}
+.theme-btn:hover{color:var(--ink);}
+table.sortable thead th[data-sort]{cursor:pointer;user-select:none;}
+table.sortable thead th[data-sort]:hover{color:var(--ink);}
+table.sortable thead th[aria-sort="ascending"]::after{content:" ▲";color:var(--a);}
+table.sortable thead th[aria-sort="descending"]::after{content:" ▼";color:var(--a);}
+tr.hidden{display:none;}
 
 footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);color:var(--ink-soft);font-size:13px;}
 
@@ -419,8 +458,57 @@ footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);color:v
 `;
 
 const JS = `
-// Toggle word-diff highlight on/off for clean screenshots (press "d").
-document.addEventListener('keydown',function(e){
-  if(e.key==='d'){document.body.classList.toggle('no-diff');}
-});
+(function(){
+  var root=document.documentElement;
+  // Theme toggle: cycles force-dark / force-light over the OS preference.
+  // Persisted in localStorage (offline, no network).
+  function prefersDark(){return window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;}
+  function isDark(){return root.classList.contains('force-dark')||(prefersDark()&&!root.classList.contains('force-light'));}
+  function apply(t){root.classList.remove('force-dark','force-light');if(t==='dark')root.classList.add('force-dark');else if(t==='light')root.classList.add('force-light');}
+  try{var saved=localStorage.getItem('lockstep-theme');if(saved)apply(saved);}catch(e){}
+  var btn=document.getElementById('theme');
+  if(btn)btn.addEventListener('click',function(){var t=isDark()?'light':'dark';apply(t);try{localStorage.setItem('lockstep-theme',t);}catch(e){}});
+
+  // Click-to-sort on tables marked .sortable. Numeric columns sort by data-v.
+  document.querySelectorAll('table.sortable').forEach(function(table){
+    var ths=table.tHead.rows[0].cells;
+    Array.prototype.forEach.call(ths,function(th,col){
+      if(!th.hasAttribute('data-sort'))return;
+      th.addEventListener('click',function(){
+        var numeric=th.getAttribute('data-sort')==='num';
+        var asc=th.getAttribute('aria-sort')!=='ascending';
+        Array.prototype.forEach.call(ths,function(o){o.removeAttribute('aria-sort');});
+        th.setAttribute('aria-sort',asc?'ascending':'descending');
+        var body=table.tBodies[0];
+        // Keep any totals row pinned at the bottom.
+        var rows=Array.prototype.slice.call(body.rows).filter(function(r){return !r.classList.contains('totals');});
+        var totals=Array.prototype.slice.call(body.rows).filter(function(r){return r.classList.contains('totals');});
+        rows.sort(function(a,b){
+          var av=a.cells[col].getAttribute('data-v'),bv=b.cells[col].getAttribute('data-v');
+          if(av===null)av=a.cells[col].textContent;if(bv===null)bv=b.cells[col].textContent;
+          var r=numeric?(parseFloat(av)-parseFloat(bv)):String(av).localeCompare(String(bv));
+          return asc?r:-r;
+        });
+        rows.concat(totals).forEach(function(r){body.appendChild(r);});
+      });
+    });
+  });
+
+  // Filter the verdict table by case id / status substring.
+  var f=document.getElementById('filter');
+  if(f)f.addEventListener('input',function(){
+    var q=f.value.trim().toLowerCase();
+    document.querySelectorAll('#verdict-table tbody tr').forEach(function(tr){
+      var hay=(tr.getAttribute('data-row')||tr.textContent).toLowerCase();
+      tr.classList.toggle('hidden',q!==''&&hay.indexOf(q)===-1);
+    });
+  });
+
+  // Toggle word-diff highlight on/off for clean screenshots (press "d"); "t" toggles theme.
+  document.addEventListener('keydown',function(e){
+    if(e.target&&/^(INPUT|TEXTAREA)$/.test(e.target.tagName))return;
+    if(e.key==='d')document.body.classList.toggle('no-diff');
+    if(e.key==='t'&&btn)btn.click();
+  });
+})();
 `;

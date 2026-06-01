@@ -1,0 +1,54 @@
+# Example: run Lockstep as prompt-CI on every pull request.
+#
+# Copy this to `.github/workflows/prompt-ci.yml` in your own repo.
+#
+# How it gates: you commit ONE known-good run as a baseline
+# (`.lockstep/baseline-run.json`), then every PR replays the suite and diffs the
+# fresh run against that baseline. The build fails if any case DRIFTED or BROKE.
+# Regenerate the baseline (and commit it) whenever you intentionally accept new
+# behaviour:  lockstep run  &&  cp "$(ls -t .lockstep/runs/*.json | head -1)" .lockstep/baseline-run.json
+#
+# Secrets: add ANTHROPIC_API_KEY / OPENAI_API_KEY under repo Settings → Secrets.
+
+name: prompt-ci
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write # needed to post the report comment
+
+jobs:
+  lockstep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Option A — use the bundled composite action (simplest):
+      - uses: ./.github/actions/lockstep
+        with:
+          baseline: .lockstep/baseline-run.json
+          fail-on: drifted,broken
+          # max-cost: "0.50"   # optional budget gate
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      # Option B — call the CLI directly instead of the action:
+      #
+      # - uses: actions/setup-node@v4
+      #   with: { node-version: "20" }
+      # - run: npm install -g lockstep
+      # - run: lockstep run --junit lockstep-results.xml
+      #   env:
+      #     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      #     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      # - run: |
+      #     NEW=$(ls -t .lockstep/runs/*.json | head -n1)
+      #     lockstep report .lockstep/baseline-run.json "$NEW" --format md -o lockstep-report.md
+      #     lockstep compare .lockstep/baseline-run.json "$NEW" --fail-on drifted,broken
+      # - if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with: { name: lockstep-report, path: lockstep-report.* }

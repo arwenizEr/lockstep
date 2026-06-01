@@ -58,5 +58,6 @@ export function allModelsConfig(): Config {
     cases_dir: "./cases",
     pricing: ALL_PRICING,
     diff: { similarity_threshold: 0.9 },
+    redact: [],
   };
 }

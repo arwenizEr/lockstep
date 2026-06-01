@@ -35,6 +35,11 @@ export const ConfigSchema = z.object({
       similarity_threshold: z.number().min(0).max(1).default(0.9),
     })
     .default({ similarity_threshold: 0.9 }),
+  /**
+   * Extra regex strings to scrub from stored output/reports. Presence of any
+   * pattern turns redaction on (built-ins included); see `core/redact.ts`.
+   */
+  redact: z.array(z.string()).default([]),
 });
 
 export type Target = z.infer<typeof TargetSchema>;
