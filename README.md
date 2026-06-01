@@ -196,7 +196,10 @@ line), `.json` (an array), `.csv` (an `input` column or the first column), and
 
 - **Tier 1 — default, deterministic, offline, free.** Bag-of-words cosine
   similarity, length delta, JSON validity, and your assertions. Anything below the
-  configured `similarity_threshold` is flagged `DRIFTED`.
+  configured `similarity_threshold` is flagged `DRIFTED`. Tier 1 is **JSON-aware**:
+  when both outputs parse as JSON it compares them structurally (key order and
+  whitespace normalized), so equivalent JSON scores 1.0 instead of false-flagging
+  drift — no tokens, no network.
 - **Tier 1.5 — opt-in (`compare --semantic`), spends tokens.** Replaces
   bag-of-words cosine with OpenAI-embedding cosine, so a reordered-but-equivalent
   output (e.g. JSON keys in a different order) no longer reads as drift.
@@ -225,7 +228,7 @@ model-correct extended-thinking shape. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```bash
 npm install
-npm test           # 249 vitest tests (offline; includes a CLI smoke test, no API key required)
+npm test           # 252 vitest tests (offline; includes a CLI smoke test, no API key required)
 npm run dev -- run # run the CLI from source via tsx
 npm run build      # type-check and compile to dist/
 ```

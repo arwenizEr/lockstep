@@ -17,7 +17,7 @@ core/
   cache.ts                   hash-keyed response cache (memory + file)
   cost.ts                    config-driven price table and cost calculation   (pure)
   budget.ts                  the --max-cost decision over a run               (pure)
-  diff.ts                    Tier-1 similarity, assertions, per-cell compare   (pure)
+  diff.ts                    Tier-1 similarity (JSON-aware), assertions, compare (pure)
   embed.ts                   Tier-1.5 embedding similarity (opt-in; injectable)
   compare.ts                 pair two runs by case and aggregate               (pure)
   trend.ts                   many-run trend + sparklines                       (pure)

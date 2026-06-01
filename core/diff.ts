@@ -48,6 +48,38 @@ export function cosineSimilarity(a: string, b: string): number {
   return denom === 0 ? 0 : dot / denom;
 }
 
+/** Recursively sort object keys so equivalent JSON serializes identically. */
+function canonicalizeJson(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(canonicalizeJson);
+  if (v && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const k of Object.keys(v as Record<string, unknown>).sort()) {
+      out[k] = canonicalizeJson((v as Record<string, unknown>)[k]);
+    }
+    return out;
+  }
+  return v;
+}
+
+/**
+ * Tier-1 similarity used by `compare`. When BOTH outputs parse as JSON it
+ * compares them structurally — key order and whitespace are normalized, so
+ * `{"a":1,"b":2}` and `{ "b": 2, "a": 1 }` score 1.0 instead of false-flagging
+ * DRIFT. Otherwise (and as the fallback for non-equal JSON) it is the
+ * deterministic, offline bag-of-words cosine. No network, no tokens.
+ */
+export function tier1Similarity(a: string, b: string): number {
+  const pa = tryParseJson(a);
+  const pb = tryParseJson(b);
+  if (pa.ok && pb.ok) {
+    const ca = JSON.stringify(canonicalizeJson(pa.value));
+    const cb = JSON.stringify(canonicalizeJson(pb.value));
+    if (ca === cb) return 1;
+    return cosineSimilarity(ca, cb);
+  }
+  return cosineSimilarity(a, b);
+}
+
 /** outLen - inLen, in characters. */
 export function lengthDelta(a: string, b: string): number {
   return b.length - a.length;
@@ -363,7 +395,7 @@ export function compareCell(
       ? 0
       : input.similarityOverride !== undefined
         ? input.similarityOverride
-        : cosineSimilarity(input.aOutput, input.bOutput);
+        : tier1Similarity(input.aOutput, input.bOutput);
   const drifted = !broken && similarity < similarityThreshold;
 
   const costDelta = input.bCost - input.aCost;

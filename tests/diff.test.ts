@@ -2,12 +2,41 @@ import { describe, it, expect } from "vitest";
 import {
   normalizeText,
   cosineSimilarity,
+  tier1Similarity,
   lengthDelta,
   runAssertion,
   runAssertions,
   compareCell,
 } from "../core/diff.js";
 import type { Assertion } from "../core/cases.js";
+
+describe("tier1Similarity (JSON-aware)", () => {
+  it("scores reordered-but-equivalent JSON as 1.0", () => {
+    expect(tier1Similarity('{"a":1,"b":2}', '{ "b": 2, "a": 1 }')).toBe(1);
+  });
+
+  it("ignores whitespace/formatting differences in equivalent JSON", () => {
+    expect(tier1Similarity('{"x":[1,2,3]}', '{\n  "x": [1, 2, 3]\n}')).toBe(1);
+  });
+
+  it("treats nested key reordering as equivalent", () => {
+    expect(tier1Similarity('{"o":{"a":1,"b":2}}', '{"o":{"b":2,"a":1}}')).toBe(1);
+  });
+
+  it("still flags genuinely different JSON below 1.0", () => {
+    expect(tier1Similarity('{"a":1}', '{"a":999}')).toBeLessThan(1);
+  });
+
+  it("falls back to cosine for non-JSON text", () => {
+    expect(tier1Similarity("the quick brown fox", "the quick brown fox")).toBe(1);
+    expect(tier1Similarity("hello world", "completely different")).toBeLessThan(1);
+  });
+
+  it("does not treat one-JSON-one-text as structural", () => {
+    // only one side parses → plain cosine, not a spurious 1.0
+    expect(tier1Similarity('{"a":1}', "just prose here")).toBeLessThan(1);
+  });
+});
 
 describe("normalizeText", () => {
   it("collapses whitespace, trims, lowercases", () => {
