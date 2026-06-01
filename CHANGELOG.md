@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Markdown report** now includes a `best` column (which target won each case —
+  by judge score, then cost, then latency) and surfaces per-case judge scores +
+  reasons inside the collapsible output blocks, so a PR comment is decision-ready.
+
 ### Added
 
 - **Datasets** — a case can pull `{{input}}` values from `inputs_file`
