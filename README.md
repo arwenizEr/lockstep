@@ -11,7 +11,7 @@ changed in the output — and what it now costs — in one shareable report.
 &nbsp;[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 &nbsp;![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)
 
-`npx lockstep run` · `npx lockstep compare` · `npx lockstep report`
+`lockstep run` · `lockstep compare` · `lockstep report`
 
 [Why](#why) · [Quickstart](#quickstart) · [Commands](#commands) · [Architecture](ARCHITECTURE.md)
 
@@ -55,6 +55,22 @@ cost, and latency.
    inline CSS/JS, no CDN, opens offline — with status badges, a cost-and-latency
    table, and side-by-side output panels with the text diff highlighted.
 
+## Install
+
+```bash
+npm install -g lockstep      # once published — puts `lockstep` on your PATH
+```
+
+From a clone (current source):
+
+```bash
+git clone https://github.com/arwenizEr/lockstep && cd lockstep
+npm install && npm run build && npm link
+```
+
+Either way you then call `lockstep …` directly. Prefer not to install? Prefix any
+command with `npx` (`npx lockstep run`).
+
 ## Quickstart
 
 ```bash
@@ -62,7 +78,7 @@ cost, and latency.
 export ANTHROPIC_API_KEY=sk-ant-...      # and/or OPENAI_API_KEY
 
 # 2. Scaffold, run, and report
-npx lockstep init && npx lockstep run && npx lockstep report
+lockstep init && lockstep run && lockstep report
 ```
 
 `init` writes `lockstep.yaml` and a `cases/` directory; `run` executes every case
@@ -77,9 +93,9 @@ secrets. The [`examples/offline/`](examples/offline/) suite is configured this w
 
 ```bash
 cd examples/offline
-npx lockstep run          # run twice to produce two comparable runs
-npx lockstep run
-npx lockstep compare
+lockstep run              # run twice to produce two comparable runs
+lockstep run
+lockstep compare
 ```
 
 ## Commands
