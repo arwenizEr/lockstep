@@ -15,6 +15,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - CI gate: `compare` and `report` accept `--fail-on <statuses>` and exit non-zero
   when any listed status is present.
 - `compare --json` for machine-readable output.
+- `run --junit <file>`: JUnit XML export for CI test dashboards.
+- `report --format md`: GitHub-flavored Markdown report for pull-request comments.
+- `lockstep list`: show saved runs, newest first.
+- `run --dry-run`: preview the run matrix and pricing without calling providers.
 - A keyless offline example suite (`examples/offline/`) and an example
   GitHub Actions PR-gate workflow (`examples/github-actions-gate.yml`).
 - GitHub Actions CI (build and test on Node 20 and 22), `CONTRIBUTING.md`, this

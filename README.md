@@ -81,9 +81,10 @@ npx lockstep compare
 | Command | Description |
 |---|---|
 | `lockstep init` | Scaffold `lockstep.yaml` and `cases/example.yaml`. |
-| `lockstep run` | Run every case × input × target; record output, tokens, cost, and latency to `.lockstep/runs/`. Flags: `--target <id>` (repeatable), `--concurrency <n>`, `--judge`, `--judge-model <model>`. |
+| `lockstep run` | Run every case × input × target; record output, tokens, cost, and latency to `.lockstep/runs/`. Flags: `--target <id>` (repeatable), `--concurrency <n>`, `--judge`, `--judge-model <model>`, `--junit <file>`, `--dry-run`. |
 | `lockstep compare [A] [B]` | Diff two runs per case (similarity, cost/latency delta, status). Omit the paths to diff the two most recent runs. Flags: `--a-target`, `--b-target`, `--fail-on <statuses>`, `--json`. |
-| `lockstep report [A] [B]` | Generate the self-contained HTML report. Flags: `-o <file>`, `--a-target`, `--b-target`, `--fail-on <statuses>`. |
+| `lockstep report [A] [B]` | Generate the report. Flags: `--format <html\|md>`, `-o <file>`, `--a-target`, `--b-target`, `--fail-on <statuses>`. |
+| `lockstep list` | List saved runs in `.lockstep/runs/` (newest first). |
 
 Two targets within a single run can be compared by passing the same run file
 twice with `--a-target` / `--b-target`.
@@ -94,11 +95,15 @@ twice with `--a-target` / `--b-target`.
 listed status is present, so a prompt regression fails the build:
 
 ```bash
+lockstep run --junit results.xml            # JUnit XML for the CI test view
 lockstep compare --fail-on drifted,broken   # exit 1 if anything drifted or broke
 ```
 
 Accepted statuses: `drifted`, `broken`, `pricier`, `slower`, `cheaper`, `faster`.
-`compare --json` emits the full comparison to stdout for scripting.
+`compare --json` emits the full comparison to stdout for scripting, `run --junit`
+writes a JUnit report for CI dashboards, and `report --format md` renders a
+Markdown summary suitable for a pull-request comment. Use `run --dry-run` to
+preview the run matrix and pricing without spending tokens.
 
 ## Defining test cases
 
@@ -142,7 +147,7 @@ model-correct extended-thinking shape. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```bash
 npm install
-npm test           # 138 offline vitest tests (no API key required)
+npm test           # 152 offline vitest tests (no API key required)
 npm run dev -- run # run the CLI from source via tsx
 npm run build      # type-check and compile to dist/
 ```

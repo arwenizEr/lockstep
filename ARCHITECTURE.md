@@ -7,18 +7,20 @@ that touches the outside world is a thin provider adapter behind a single-method
 interface.
 
 ```
-cli/index.ts                 commands: init · run · compare · report
+cli/index.ts                 commands: init · run · compare · report · list
 core/
   config.ts                  load and zod-validate lockstep.yaml
   cases.ts                   load and validate case files (.yaml; assertion schema)
   env.ts                     zero-dependency .env loader (walks cwd upward)
-  runner.ts                  orchestration: the case × input × target matrix
+  runner.ts                  orchestration: matrix run + planRun / describeRun
   cost.ts                    config-driven price table and cost calculation   (pure)
   diff.ts                    Tier-1 similarity, assertions, per-cell compare   (pure)
   compare.ts                 pair two runs by case and aggregate               (pure)
   gate.ts                    the --fail-on CI gate decision                    (pure)
   judge.ts                   Tier-2 LLM-as-judge (opt-in)
   report.ts                  self-contained HTML report                        (pure)
+  report-md.ts               Markdown report for PR comments                   (pure)
+  junit.ts                   JUnit XML export for CI                           (pure)
   providers/
     types.ts                 the Provider interface
     registry.ts              provider id -> factory (single source of truth)
@@ -40,9 +42,12 @@ lockstep.yaml + cases/*.yaml
         │
         │  compare.ts  (pair two runs by caseId#inputIndex)
         ▼
-   CompareReport  ──►  report.ts  ──►  one self-contained .html
-                  ├─►  gate.ts     ──►  process exit code (--fail-on)
+   CompareReport  ──►  report.ts     ──►  one self-contained .html
+                  ├─►  report-md.ts  ──►  Markdown (--format md)
+                  ├─►  gate.ts       ──►  process exit code (--fail-on)
                   └─►  cli prints a terminal table (or JSON with --json)
+
+   RunFile        ──►  junit.ts      ──►  JUnit XML (run --junit)
 ```
 
 A **run** never mutates anything but its own output file. **compare** and
@@ -98,8 +103,8 @@ that into an exit code. This keeps the CI contract testable in isolation.
 ## Testing
 
 The pure and near-pure modules — `cost`, `diff`, `compare`, `gate`, `report`,
-`judge`, `env`, `registry`, `config`, `cases` — are unit-tested with vitest and
-require no API key. The runner and both real provider adapters are also covered
+`report-md`, `junit`, `judge`, `env`, `registry`, `config`, `cases` — are
+unit-tested with vitest and require no API key. The runner and both real provider adapters are also covered
 offline: the adapters take an injectable client/`fetch`, and the keyless `mock`
 provider drives the runner end-to-end without a network. The suite is fully
 offline by design; anything requiring a live API call belongs in a manual check
