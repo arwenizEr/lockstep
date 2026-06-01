@@ -47,7 +47,7 @@ already set per model:
 
 ```bash
 cd examples && cp all-models.yaml lockstep.yaml
-lockstep ask "Explain a monad in one sentence."   # fans out to all 16 models
+lockstep ask "Explain a monad in one sentence."   # fans out to all 15 models
 ```
 
 ---
