@@ -257,7 +257,7 @@ Keys: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` (or `GOOGLE_API_KE
 
 ```bash
 npm install
-npm test           # 268 vitest tests (offline; includes a CLI smoke test, no API key required)
+npm test           # 297 vitest tests (offline; includes a CLI smoke test, no API key required)
 npm run dev -- run # run the CLI from source via tsx
 npm run build      # type-check and compile to dist/
 ```
