@@ -1,0 +1,23 @@
+# lockstep.yaml — prompt-CI config
+# Docs: https://github.com/arwenizEr/lockstep
+
+targets:
+  - id: opus-4-8
+    provider: anthropic
+    model: claude-opus-4-8
+    effort: high
+  - id: opus-4-7
+    provider: anthropic
+    model: claude-opus-4-7
+    effort: high
+
+cases_dir: ./cases
+
+# $/million tokens. USER-EDITABLE. Treat as untrusted defaults — verify before
+# relying on them; provider prices change every release.
+pricing:
+  claude-opus-4-8: { in: 5, out: 25 }
+  claude-opus-4-7: { in: 5, out: 25 }
+
+diff:
+  similarity_threshold: 0.9   # below this => flag DRIFTED

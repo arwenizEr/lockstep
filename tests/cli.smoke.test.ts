@@ -132,6 +132,14 @@ describe("CLI (built binary, mock provider)", () => {
     expect(r.stdout).toMatch(/run gate passed/);
   });
 
+  it("doctor reports the mock targets as runnable", () => {
+    const r = lockstep(["doctor"]);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("providers:");
+    expect(r.stdout).toContain("mock");
+    expect(r.stdout).toMatch(/all targets are runnable/);
+  });
+
   it("trend shows movement across runs", () => {
     const r = lockstep(["trend"]);
     expect(r.status).toBe(0);

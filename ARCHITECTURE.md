@@ -7,7 +7,7 @@ that touches the outside world is a thin provider adapter behind a single-method
 interface.
 
 ```
-cli/index.ts                 commands: init · run · ask · compare · report · trend · baseline · list
+cli/index.ts                 commands: init · run · ask · compare · report · trend · baseline · doctor · list
 core/
   config.ts                  load and zod-validate lockstep.yaml (incl. redact patterns)
   cases.ts                   load + validate cases (.yaml); prompt | messages; inputs_file; defaults merge
@@ -23,6 +23,7 @@ core/
   trend.ts                   many-run trend + sparklines                       (pure)
   trend-report.ts            self-contained HTML trend report (inline SVG)     (pure)
   baseline.ts                pin/read/clear a golden run pointer
+  doctor.ts                  provider-credential + target-runnability check     (pure)
   gate.ts                    the --fail-on CI gate decision                    (pure)
   judge.ts                   Tier-2 LLM-as-judge: absolute score + pairwise (opt-in)
   redact.ts                  scrub secrets/PII from a saved run                (pure)
@@ -37,6 +38,9 @@ core/
     registry.ts              provider id -> factory (single source of truth)
     anthropic.ts             Anthropic SDK adapter (injectable client)
     openai.ts                OpenAI Chat Completions adapter (fetch; timeout/abort)
+    gemini.ts                Google Gemini generateContent adapter (fetch)
+    openrouter.ts            OpenRouter gateway adapter — one key, many models (fetch)
+    ollama.ts                local, keyless Ollama /api/chat adapter (fetch)
     mock.ts                  keyless deterministic adapter (offline / tests / CI)
 ```
 

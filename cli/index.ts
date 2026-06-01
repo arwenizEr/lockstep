@@ -33,6 +33,7 @@ import { renderTrendReport } from "../core/trend-report.js";
 import { OpenAIEmbedder, buildSemanticOverrides, type SemanticPair } from "../core/embed.js";
 import { judgePairwise } from "../core/judge.js";
 import { debounce, watchPaths } from "../core/watch.js";
+import { diagnose } from "../core/doctor.js";
 
 const program = new Command();
 
@@ -448,6 +449,53 @@ program
       }
     });
     printTable(["run", "targets", "results", "broken", "cost"], rows);
+  });
+
+// ---------------------------------------------------------------------------
+// doctor — check which providers are configured and which targets are runnable
+// ---------------------------------------------------------------------------
+program
+  .command("doctor")
+  .description("Check provider credentials and which configured targets are runnable")
+  .option("--strict", "exit non-zero if any configured target is not runnable", false)
+  .action((opts: { strict: boolean }) => {
+    let loaded;
+    try {
+      loaded = loadConfig();
+    } catch (e) {
+      console.log(`No usable config: ${(e as Error).message}`);
+      console.log("Run `lockstep init` to scaffold one.");
+      return;
+    }
+    const dx = diagnose(loaded.config, process.env);
+
+    console.log("\n  providers:");
+    printTable(
+      ["provider", "credential", "status"],
+      dx.providers.map((p) => [
+        p.provider,
+        p.keyless ? "(keyless)" : p.keyEnv.join(" / "),
+        p.ready ? "ready" : "MISSING",
+      ])
+    );
+
+    console.log("\n  targets:");
+    printTable(
+      ["target", "provider", "model", "runnable"],
+      dx.targets.map((t) => [
+        t.id,
+        t.provider,
+        t.model,
+        t.runnable ? "yes" : `NO — ${t.reason ?? ""}`,
+      ])
+    );
+
+    if (dx.allRunnable) {
+      console.log("\n  ok all targets are runnable.\n");
+    } else {
+      console.log("\n  x some targets are not runnable (see above).\n");
+      if (opts.strict) process.exitCode = 1;
+    }
   });
 
 // ---------------------------------------------------------------------------

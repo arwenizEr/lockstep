@@ -1,0 +1,20 @@
+# cases/example.yaml — one or many cases per file.
+# {{input}} is substituted per entry in `inputs`.
+
+- id: extract-invoice
+  prompt: "Extract vendor, total, and date as JSON from: {{input}}"
+  system: "You are a precise extraction engine. Output only JSON."
+  inputs:
+    - "Invoice from Acme Corp. Total: 1240.00 USD. Date: 2026-05-01."
+    - "ACME LLC billed 89.99 USD on 2026-04-18 for hosting."
+  assert:
+    - { type: json_valid }
+    - { type: json_has_keys, keys: [vendor, total, date] }
+    - { type: contains, value: "USD" }
+  rubric: "Did it extract all three fields correctly without hallucinating?"
+
+- id: summarize-one-line
+  prompt: "Summarize this in exactly one sentence: {{input}}"
+  inputs:
+    - "The mitochondrion is the powerhouse of the cell, generating ATP via oxidative phosphorylation."
+  rubric: "Is it one accurate sentence?"

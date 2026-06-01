@@ -22,6 +22,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Providers** — Google **Gemini** (`generateContent`), **OpenRouter** (one key,
+  hundreds of models, OpenAI-compatible), and a keyless local **Ollama**
+  (`/api/chat`) adapter, each behind the same `Provider` interface and unit-tested
+  with an injected `fetch`. Registry now exposes anthropic, openai, gemini,
+  openrouter, ollama, mock.
+- **`lockstep doctor`** — checks which provider credentials are set and which
+  configured targets are runnable before a run; `--strict` exits non-zero if any
+  target is missing its key (a fast pre-CI sanity check).
 - **`run --fail-on-assert`** — exit non-zero if any case is BROKEN or fails an
   assertion, so a single `run` gates CI without needing a second run to compare
   (complements `compare --fail-on`). Backed by a pure `runFailures()`.
