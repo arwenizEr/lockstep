@@ -154,3 +154,60 @@ describe("renderReport headline verdict", () => {
       .toContain("2 broke");
   });
 });
+
+describe("renderReport panels & per-case verdict", () => {
+  type CR = NonNullable<CompareReport["pairs"][number]["a"]>;
+  const res = (over: Partial<CR>): CR => ({
+    caseId: "c", inputIndex: 0, targetId: "t", model: "m", provider: "mock",
+    prompt: "p", status: "OK", output: "hello world", tokensIn: 5, tokensOut: 5,
+    cost: 0.001, priced: true, latencyMs: 500, assertionsPass: true, ...over,
+  });
+  const base = (pairs: CompareReport["pairs"]): CompareReport => ({
+    ...report, pairs,
+    summary: { ...report.summary, total: pairs.length },
+  });
+
+  it("emits word-diff add/rm spans for two differing OK outputs", () => {
+    const html = renderReport(base([{
+      caseId: "c", inputIndex: 0,
+      a: res({ output: "the quick brown fox" }),
+      b: res({ output: "the slow brown dog" }),
+      cell: { caseId: "c", inputIndex: 0, similarity: 0.5, drifted: true, broken: false,
+        costDelta: 0, costPct: 0, latencyDelta: 0, statuses: ["DRIFTED"] },
+    }]));
+    expect(html).toContain('class="rm"');   // tokens only in A
+    expect(html).toContain('class="add"');  // tokens only in B
+  });
+
+  it("renders a BROKEN panel with the error and a 'B broke' verdict", () => {
+    const html = renderReport(base([{
+      caseId: "c", inputIndex: 0,
+      a: res({}),
+      b: res({ status: "BROKEN", output: "", error: "429 rate limited", assertionsPass: undefined }),
+      cell: { caseId: "c", inputIndex: 0, similarity: 0, drifted: false, broken: true,
+        costDelta: 0, costPct: null, latencyDelta: 0, statuses: ["BROKEN"] },
+    }]));
+    expect(html).toContain("badge-broken");
+    expect(html).toContain("429 rate limited");
+    expect(html).toContain("A (B broke)");
+  });
+
+  it("handles a one-sided (missing) pair", () => {
+    const html = renderReport(base([{
+      caseId: "c", inputIndex: 0, a: res({}), b: undefined, cell: undefined,
+    }]));
+    expect(html).toContain("A (B missing)");
+    expect(html).toContain("missing");
+  });
+
+  it("breaks a non-broken tie by judge score", () => {
+    const html = renderReport(base([{
+      caseId: "c", inputIndex: 0,
+      a: res({ judge: { score: 0.6, reason: "ok" } }),
+      b: res({ output: "hello world", judge: { score: 0.9, reason: "better" } }),
+      cell: { caseId: "c", inputIndex: 0, similarity: 1, drifted: false, broken: false,
+        costDelta: 0, costPct: null, latencyDelta: 0, statuses: ["OK"] },
+    }]));
+    expect(html).toContain("B (better)");
+  });
+});
