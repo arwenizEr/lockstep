@@ -225,7 +225,7 @@ model-correct extended-thinking shape. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```bash
 npm install
-npm test           # 246 vitest tests (offline; includes a CLI smoke test, no API key required)
+npm test           # 249 vitest tests (offline; includes a CLI smoke test, no API key required)
 npm run dev -- run # run the CLI from source via tsx
 npm run build      # type-check and compile to dist/
 ```

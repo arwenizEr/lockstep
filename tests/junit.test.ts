@@ -55,9 +55,32 @@ describe("renderJUnit", () => {
     expect(x).toMatch(/<failure message="json_valid: no valid JSON found"/);
   });
 
-  it("self-closes passing testcases", () => {
-    const x = renderJUnit(runFile([result({ caseId: "good", assertionsPass: true })]));
-    expect(x).toMatch(/<testcase name="good#0"[^>]*><\/testcase>/);
+  it("includes a <system-out> with the output + meta for passing testcases", () => {
+    const x = renderJUnit(
+      runFile([result({ caseId: "good", output: "hello there", assertionsPass: true })])
+    );
+    expect(x).toContain("<system-out>");
+    expect(x).toContain("hello there");
+    expect(x).toMatch(/1\/1 tok · 1200ms/);
+  });
+
+  it("includes the judge score in <system-out> when present", () => {
+    const x = renderJUnit(
+      runFile([result({ output: "x", judge: { score: 0.85, reason: "good" }, assertionsPass: true })])
+    );
+    expect(x).toContain("judge 0.85");
+  });
+
+  it("truncates very long output in <system-out>", () => {
+    const long = "a".repeat(5000);
+    const x = renderJUnit(runFile([result({ output: long, assertionsPass: true })]));
+    expect(x).toContain("…");
+    expect(x).not.toContain("a".repeat(5000));
+  });
+
+  it("omits <system-out> for BROKEN cells (the <error> carries the message)", () => {
+    const x = renderJUnit(runFile([result({ status: "BROKEN", error: "boom" })]));
+    expect(x).not.toContain("<system-out>");
   });
 
   it("XML-escapes special characters", () => {
