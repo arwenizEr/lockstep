@@ -19,6 +19,30 @@ function assertionFailures(r: CaseResult): string {
     .join("; ");
 }
 
+const SYSTEM_OUT_LIMIT = 2000;
+
+/**
+ * A <system-out> block carrying what the model actually returned (truncated) plus
+ * cost/latency and any judge score — so a CI test viewer shows the output next to
+ * a pass/fail, not just the verdict. Empty for BROKEN cells (the <error> already
+ * carries the message).
+ */
+function systemOut(r: CaseResult): string {
+  if (r.status === "BROKEN") return "";
+  const meta = [
+    `${r.tokensIn}/${r.tokensOut} tok`,
+    `${r.latencyMs}ms`,
+    `$${r.cost.toFixed(5)}${r.priced ? "" : "~"}`,
+    r.judge ? `judge ${r.judge.score.toFixed(2)}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const out = r.output.length > SYSTEM_OUT_LIMIT
+    ? r.output.slice(0, SYSTEM_OUT_LIMIT) + "…"
+    : r.output;
+  return `      <system-out>${xml(`[${meta}]\n${out}`)}</system-out>`;
+}
+
 /**
  * Render a run as a JUnit XML report. Each cell (case × input × target) becomes
  * one <testcase>. A BROKEN cell is an <error> (the request itself failed); a
@@ -57,9 +81,12 @@ export function renderJUnit(run: RunFile): string {
       const msg = assertionFailures(r) || "assertion failed";
       lines.push(open);
       lines.push(`      <failure message="${xml(msg)}" type="AssertionError"/>`);
+      lines.push(systemOut(r));
       lines.push(`    </testcase>`);
     } else {
-      lines.push(`${open}</testcase>`);
+      lines.push(open);
+      lines.push(systemOut(r));
+      lines.push(`    </testcase>`);
     }
   }
 

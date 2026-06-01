@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **JUnit report** now emits a `<system-out>` per testcase with the (truncated)
+  model output plus tokens/latency/cost and any judge score, so a CI test viewer
+  shows what each prompt actually returned next to its pass/fail. BROKEN cells
+  keep their `<error>` only.
+
 ### Added
 
 - **Datasets** — a case can pull `{{input}}` values from `inputs_file`
