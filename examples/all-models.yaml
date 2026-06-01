@@ -1,0 +1,76 @@
+# All current models — Anthropic + OpenAI — as Lockstep targets.
+#
+# Use this to run one prompt against the whole field:
+#     cd examples && cp all-models.yaml lockstep.yaml
+#     export ANTHROPIC_API_KEY=...  OPENAI_API_KEY=...
+#     npx lockstep ask "your prompt here"
+#
+# Heads up: `ask`/`run` here fan out to every model below and spend real tokens
+# on both providers. Trim the list, or pass `--target <id>` (repeatable), to
+# limit it. Prices are $/million tokens, verified against the vendor docs on
+# 2026-06-01 — treat them as untrusted defaults and re-check before relying on
+# the cost figures (they drift every release).
+#
+# ── Accepted parameters (why each target sets what it sets) ──────────────────
+# Anthropic Messages API: accepts temperature/top_p/top_k normally. BUT the
+#   adaptive-thinking line (Opus 4.6/4.7/4.8, Sonnet 4.6) uses `effort` and
+#   rejects sampling params while thinking is on — so those targets set `effort`
+#   and no sampling. Older models (Opus 4.5, Sonnet 4.5, Haiku 4.5) use
+#   extended-thinking budgets; left plain here (no thinking) so they always run.
+# OpenAI: GPT-5.x and the o-series are reasoning models — they accept
+#   `reasoning_effort` (GPT-5.5 adds `xhigh`) and reject temperature/top_p while
+#   reasoning is active, so those targets set `effort`. gpt-4.1/4o/4o-mini are
+#   chat models and accept `temperature`/`top_p`.
+# Lockstep's adapters drop the wrong params per model automatically, so a
+# mis-set parameter is corrected rather than returning a 400.
+
+targets:
+  # ── Anthropic — adaptive thinking (use effort, not sampling) ──
+  - { id: opus-4-8,   provider: anthropic, model: claude-opus-4-8,   effort: high }
+  - { id: opus-4-7,   provider: anthropic, model: claude-opus-4-7,   effort: high }
+  - { id: opus-4-6,   provider: anthropic, model: claude-opus-4-6,   effort: high }
+  - { id: sonnet-4-6, provider: anthropic, model: claude-sonnet-4-6, effort: high }
+
+  # ── Anthropic — extended-thinking line (plain; accepts temperature/top_p/top_k) ──
+  - { id: opus-4-5,   provider: anthropic, model: claude-opus-4-5 }
+  - { id: sonnet-4-5, provider: anthropic, model: claude-sonnet-4-5 }
+  - { id: haiku-4-5,  provider: anthropic, model: claude-haiku-4-5 }
+
+  # ── OpenAI — reasoning models (use reasoning_effort, not temperature) ──
+  - { id: gpt-5.5,      provider: openai, model: gpt-5.5,      effort: high }
+  - { id: gpt-5.5-pro,  provider: openai, model: gpt-5.5-pro,  effort: high }
+  - { id: gpt-5.4,      provider: openai, model: gpt-5.4,      effort: high }
+  - { id: gpt-5.4-mini, provider: openai, model: gpt-5.4-mini, effort: high }
+  - { id: o3,           provider: openai, model: o3,           effort: high }
+  - { id: o4-mini,      provider: openai, model: o4-mini,      effort: high }
+
+  # ── OpenAI — chat models (accept temperature/top_p) ──
+  - { id: gpt-4.1,      provider: openai, model: gpt-4.1,      temperature: 0 }
+  - { id: gpt-4o,       provider: openai, model: gpt-4o,       temperature: 0 }
+  - { id: gpt-4o-mini,  provider: openai, model: gpt-4o-mini,  temperature: 0 }
+
+cases_dir: ./cases
+
+# $/million tokens — { in, out }. Verified against vendor docs 2026-06-01.
+pricing:
+  # Anthropic
+  claude-opus-4-8:   { in: 5,    out: 25 }
+  claude-opus-4-7:   { in: 5,    out: 25 }
+  claude-opus-4-6:   { in: 5,    out: 25 }
+  claude-opus-4-5:   { in: 5,    out: 25 }
+  claude-sonnet-4-6: { in: 3,    out: 15 }
+  claude-sonnet-4-5: { in: 3,    out: 15 }
+  claude-haiku-4-5:  { in: 1,    out: 5 }
+  # OpenAI
+  gpt-5.5:           { in: 5,    out: 30 }
+  gpt-5.5-pro:       { in: 30,   out: 180 }
+  gpt-5.4:           { in: 2.5,  out: 15 }
+  gpt-5.4-mini:      { in: 0.75, out: 4.5 }
+  o3:                { in: 2,    out: 8 }
+  o4-mini:           { in: 1.1,  out: 4.4 }
+  gpt-4.1:           { in: 2,    out: 8 }    # verify — not on the current pricing page
+  gpt-4o:            { in: 2.5,  out: 10 }   # legacy; verify
+  gpt-4o-mini:       { in: 0.15, out: 0.6 }  # legacy; verify
+
+diff:
+  similarity_threshold: 0.9

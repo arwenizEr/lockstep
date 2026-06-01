@@ -13,6 +13,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   side-by-side comparison, with no cases file.
 - `docs/USAGE.md` — full command reference with a runnable example and real
   output for every command.
+- `examples/all-models.yaml` — every current Anthropic and OpenAI model as a
+  target, with verified pricing and per-model accepted parameters set correctly
+  (adaptive `effort` for the Opus 4.6+/Sonnet 4.6 line and OpenAI reasoning
+  models; `temperature` for OpenAI chat models).
+
+### Changed
+
+- Anthropic adapter: the adaptive-thinking / `effort` path now covers the whole
+  adaptive line (Opus 4.6, 4.7, 4.8 and Sonnet 4.6), not just Opus 4.8.
 
 ## [0.1.0] — 2026-06-01
 

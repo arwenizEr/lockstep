@@ -146,6 +146,9 @@ Anthropic, OpenAI, and a keyless `mock` provider ship today, all behind a single
 `Provider` interface. Adding another is one adapter file plus one line in
 [`core/providers/registry.ts`](core/providers/registry.ts) — `config.ts` validates
 the `provider` field against the registry, so the schema never needs editing.
+[`examples/all-models.yaml`](examples/all-models.yaml) lists every current
+Anthropic and OpenAI model as a target, with prices and per-model accepted
+parameters already set — drop it in and `lockstep ask` runs against the field.
 
 Each adapter owns its provider's quirks: the OpenAI adapter drops the sampling
 parameters a model rejects (reasoning models versus chat models) and applies a

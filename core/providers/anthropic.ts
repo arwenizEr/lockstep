@@ -6,7 +6,16 @@ import type { Provider, RunRequest, RunResult } from "./types.js";
  * use the effort-based extended-thinking API instead of a token budget.
  * Prefix-matched.
  */
-const EFFORT_THINKING_PREFIXES = ["claude-opus-4-8"];
+// Models that use adaptive thinking + `output_config.effort` (and reject
+// temperature/top_p/top_k when thinking is on) rather than a token budget.
+// Per Anthropic docs: the Opus 4.6+ line and Sonnet 4.6 are adaptive; older
+// 4.x models (opus-4-5, sonnet-4-5, haiku-4-5) use extended-thinking budgets.
+const EFFORT_THINKING_PREFIXES = [
+  "claude-opus-4-8",
+  "claude-opus-4-7",
+  "claude-opus-4-6",
+  "claude-sonnet-4-6",
+];
 
 function usesEffortThinking(model: string): boolean {
   return EFFORT_THINKING_PREFIXES.some((p) => model.startsWith(p));
