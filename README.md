@@ -207,8 +207,9 @@ line), `.json` (an array), `.csv` (an `input` column or the first column), and
 
 ## Cross-provider by design
 
-Anthropic, OpenAI, and a keyless `mock` provider ship today, all behind a single
-`Provider` interface. Adding another is one adapter file plus one line in
+Anthropic, OpenAI, Google Gemini, OpenRouter (one key, hundreds of models), a
+keyless local **Ollama** adapter, and a keyless `mock` provider ship today, all
+behind a single `Provider` interface. Adding another is one adapter file plus one line in
 [`core/providers/registry.ts`](core/providers/registry.ts) — `config.ts` validates
 the `provider` field against the registry, so the schema never needs editing.
 `lockstep ask --all "…"` compares a prompt across every current model with no
@@ -219,13 +220,28 @@ roster as a committable config.
 Each adapter owns its provider's quirks: the OpenAI adapter drops the sampling
 parameters a model rejects (reasoning models versus chat models) and applies a
 request timeout; the Anthropic adapter maps an `effort` tier onto the
-model-correct extended-thinking shape. See [ARCHITECTURE.md](ARCHITECTURE.md).
+model-correct extended-thinking shape; Gemini uses role `model` for assistant
+turns and `systemInstruction` for the system prompt; OpenRouter maps `effort`
+onto a `reasoning` object; Ollama needs no key and talks to a local daemon. See
+[ARCHITECTURE.md](ARCHITECTURE.md).
+
+```yaml
+targets:
+  - { id: opus,     provider: anthropic,  model: claude-opus-4-8, effort: high }
+  - { id: gpt,      provider: openai,     model: gpt-5.5,         effort: high }
+  - { id: gemini,   provider: gemini,     model: gemini-2.5-pro }
+  - { id: or-llama, provider: openrouter, model: meta-llama/llama-4-maverick }
+  - { id: local,    provider: ollama,     model: llama3.2 }   # keyless, on your machine
+```
+
+Keys: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` (or `GOOGLE_API_KEY`),
+`OPENROUTER_API_KEY`. Ollama needs none (`OLLAMA_HOST` overrides the daemon URL).
 
 ## Development
 
 ```bash
 npm install
-npm test           # 246 vitest tests (offline; includes a CLI smoke test, no API key required)
+npm test           # 260 vitest tests (offline; includes a CLI smoke test, no API key required)
 npm run dev -- run # run the CLI from source via tsx
 npm run build      # type-check and compile to dist/
 ```

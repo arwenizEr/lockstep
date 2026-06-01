@@ -36,6 +36,9 @@ core/
     registry.ts              provider id -> factory (single source of truth)
     anthropic.ts             Anthropic SDK adapter (injectable client)
     openai.ts                OpenAI Chat Completions adapter (fetch; timeout/abort)
+    gemini.ts                Google Gemini generateContent adapter (fetch)
+    openrouter.ts            OpenRouter gateway adapter — one key, many models (fetch)
+    ollama.ts                local, keyless Ollama /api/chat adapter (fetch)
     mock.ts                  keyless deterministic adapter (offline / tests / CI)
 ```
 

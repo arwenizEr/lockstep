@@ -1,0 +1,29 @@
+# Compare one prompt suite across five providers at once.
+#
+#   cp examples/multi-provider.yaml lockstep.yaml
+#   export ANTHROPIC_API_KEY=... OPENAI_API_KEY=... GEMINI_API_KEY=... OPENROUTER_API_KEY=...
+#   ollama serve            # for the local target (no key needed)
+#   lockstep run && lockstep report
+#
+# Every adapter speaks the same Provider interface; each owns its own quirks
+# (effort shape, role names, system-prompt placement) internally.
+
+targets:
+  - { id: opus,     provider: anthropic,  model: claude-opus-4-8, effort: high }
+  - { id: gpt,      provider: openai,     model: gpt-5.5,         effort: high }
+  - { id: gemini,   provider: gemini,     model: gemini-2.5-pro }
+  - { id: or-llama, provider: openrouter, model: meta-llama/llama-4-maverick }
+  - { id: local,    provider: ollama,     model: llama3.2 }   # keyless, runs on your machine
+
+cases_dir: ./cases
+
+# $/million tokens. USER-EDITABLE, untrusted defaults — verify before relying.
+# Local (ollama) has no per-token price; leave it out and cost shows as ~.
+pricing:
+  claude-opus-4-8: { in: 5, out: 25 }
+  gpt-5.5: { in: 5, out: 30 }
+  gemini-2.5-pro: { in: 2.5, out: 10 }
+  meta-llama/llama-4-maverick: { in: 0.2, out: 0.6 }
+
+diff:
+  similarity_threshold: 0.9

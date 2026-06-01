@@ -1,6 +1,9 @@
 import type { Provider } from "./types.js";
 import { AnthropicProvider } from "./anthropic.js";
 import { OpenAIProvider } from "./openai.js";
+import { GeminiProvider } from "./gemini.js";
+import { OpenRouterProvider } from "./openrouter.js";
+import { OllamaProvider } from "./ollama.js";
 import { MockProvider } from "./mock.js";
 
 /**
@@ -16,6 +19,9 @@ import { MockProvider } from "./mock.js";
 export const PROVIDER_FACTORIES: Record<string, () => Provider> = {
   anthropic: () => new AnthropicProvider(),
   openai: () => new OpenAIProvider(),
+  gemini: () => new GeminiProvider(),
+  openrouter: () => new OpenRouterProvider(),
+  ollama: () => new OllamaProvider(),
   mock: () => new MockProvider(),
 };
 
