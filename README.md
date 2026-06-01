@@ -84,8 +84,11 @@ npx lockstep compare
 
 ## Commands
 
+> Full reference with example output for every command: **[docs/USAGE.md](docs/USAGE.md)**.
+
 | Command | Description |
 |---|---|
+| `lockstep ask [prompt]` | Run one prompt (arg, `--file`, or stdin) against **every** target and compare side-by-side — no cases file needed. |
 | `lockstep init` | Scaffold `lockstep.yaml` and `cases/example.yaml`. |
 | `lockstep run` | Run every case × input × target; record output, tokens, cost, and latency to `.lockstep/runs/`. Flags: `--target <id>` (repeatable), `--concurrency <n>`, `--judge`, `--judge-model <model>`, `--junit <file>`, `--dry-run`. |
 | `lockstep compare [A] [B]` | Diff two runs per case (similarity, cost/latency delta, status). Omit the paths to diff the two most recent runs. Flags: `--a-target`, `--b-target`, `--fail-on <statuses>`, `--json`. |

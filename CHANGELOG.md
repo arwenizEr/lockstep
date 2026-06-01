@@ -6,7 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- `lockstep ask [prompt]` — run one ad-hoc prompt (positional argument,
+  `--file <path>`, or piped stdin) against every configured target and print a
+  side-by-side comparison, with no cases file.
+- `docs/USAGE.md` — full command reference with a runnable example and real
+  output for every command.
 
 ## [0.1.0] — 2026-06-01
 

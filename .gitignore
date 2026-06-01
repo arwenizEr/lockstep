@@ -15,6 +15,7 @@ tests/_*
 # local run data & ad-hoc reports (the committed demo lives in examples/, not here)
 .lockstep/
 .e2e/
+.usage/
 lockstep-report.html
 
 *.log
