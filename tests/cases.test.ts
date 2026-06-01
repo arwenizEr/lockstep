@@ -49,4 +49,54 @@ describe("loadCases", () => {
   it("throws on a missing directory", () => {
     expect(() => loadCases(join(dir, "nope"))).toThrow(/cases_dir not found/);
   });
+
+  it("loads inputs from a dataset file and merges with inline inputs", () => {
+    const d = mkdtempSync(join(tmpdir(), "lockstep-cases-ds-"));
+    writeFileSync(join(d, "data.jsonl"), '"x"\n"y"\n', "utf8");
+    writeFileSync(
+      join(d, "suite.yaml"),
+      `- id: c1\n  prompt: "p {{input}}"\n  inputs: ["inline"]\n  inputs_file: data.jsonl\n`,
+      "utf8"
+    );
+    const cases = loadCases(d);
+    expect(cases[0].inputs).toEqual(["inline", "x", "y"]);
+    rmSync(d, { recursive: true, force: true });
+  });
+
+  it("errors when inputs_file is missing", () => {
+    const d = mkdtempSync(join(tmpdir(), "lockstep-cases-ds-missing-"));
+    writeFileSync(join(d, "suite.yaml"), `- id: c1\n  prompt: p\n  inputs_file: nope.jsonl\n`, "utf8");
+    expect(() => loadCases(d)).toThrow(/inputs_file not found/);
+    rmSync(d, { recursive: true, force: true });
+  });
+
+  it("accepts a multi-turn case with messages", () => {
+    const d = mkdtempSync(join(tmpdir(), "lockstep-cases-mt-"));
+    writeFileSync(
+      join(d, "suite.yaml"),
+      `- id: chat\n  messages:\n    - { role: user, content: "hi" }\n    - { role: assistant, content: "hello" }\n    - { role: user, content: "say {{input}}" }\n  inputs: ["bye"]\n`,
+      "utf8"
+    );
+    const cases = loadCases(d);
+    expect(cases[0].messages).toHaveLength(3);
+    rmSync(d, { recursive: true, force: true });
+  });
+
+  it("rejects a case with both prompt and messages", () => {
+    const d = mkdtempSync(join(tmpdir(), "lockstep-cases-both-"));
+    writeFileSync(
+      join(d, "suite.yaml"),
+      `- id: c1\n  prompt: p\n  messages:\n    - { role: user, content: x }\n`,
+      "utf8"
+    );
+    expect(() => loadCases(d)).toThrow(/exactly one of/);
+    rmSync(d, { recursive: true, force: true });
+  });
+
+  it("rejects a case with neither prompt nor messages", () => {
+    const d = mkdtempSync(join(tmpdir(), "lockstep-cases-neither-"));
+    writeFileSync(join(d, "suite.yaml"), `- id: c1\n  inputs: ["a"]\n`, "utf8");
+    expect(() => loadCases(d)).toThrow(/exactly one of/);
+    rmSync(d, { recursive: true, force: true });
+  });
 });

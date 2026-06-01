@@ -2,11 +2,12 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Config, Target } from "./config.js";
 import type { Case } from "./cases.js";
-import type { Provider, RunResult } from "./providers/types.js";
+import type { Provider, RunResult, Msg } from "./providers/types.js";
 import { createProvider } from "./providers/registry.js";
 import { costForModel } from "./cost.js";
 import { judgeOutput, type JudgeVerdict } from "./judge.js";
 import { runAssertions, type AssertionResult } from "./diff.js";
+import { cacheKey, type ProviderCache } from "./cache.js";
 
 export interface CaseResult {
   caseId: string;
@@ -27,6 +28,8 @@ export interface CaseResult {
   cost: number;
   priced: boolean;
   latencyMs: number;
+  /** True when this result was served from the response cache, not a live call. */
+  cached?: boolean;
   rubric?: string;
   assertions?: AssertionResult[];
   /** Set to false if any assertion failed. */
@@ -52,6 +55,8 @@ export interface RunOptions {
   judge?: boolean;
   /** Override judge model (default claude-haiku-4-5). */
   judgeModel?: string;
+  /** Optional response cache. A hit skips the provider call (and its cost). */
+  cache?: ProviderCache;
 }
 
 function makeProvider(target: Target): Provider {
@@ -112,6 +117,33 @@ interface Job {
   input: string;
 }
 
+const substitute = (s: string, input: string): string =>
+  s.replace(/\{\{\s*input\s*\}\}/g, input);
+
+/**
+ * Resolve a case + input into the message array sent to the provider and a
+ * single display prompt (stored on the result, shown in the report). Single-turn
+ * cases become one user turn; multi-turn cases pass their scripted conversation
+ * through, with `{{input}}` substituted in every turn.
+ */
+export function buildTurns(
+  case_: Case,
+  input: string
+): { messages: Msg[]; displayPrompt: string } {
+  if (case_.messages) {
+    const messages: Msg[] = case_.messages.map((m) => ({
+      role: m.role,
+      content: substitute(m.content, input),
+    }));
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    const displayPrompt =
+      lastUser?.content ?? messages.map((m) => `${m.role}: ${m.content}`).join("\n");
+    return { messages, displayPrompt };
+  }
+  const content = substitute(case_.prompt ?? "", input);
+  return { messages: [{ role: "user", content }], displayPrompt: content };
+}
+
 export interface RunHooks {
   onResult?: (r: CaseResult) => void;
 }
@@ -162,7 +194,7 @@ export async function run(
   const startedAt = new Date().toISOString();
 
   const results = await mapLimit(jobs, concurrency, async (job) => {
-    const prompt = job.case_.prompt.replace(/\{\{\s*input\s*\}\}/g, job.input);
+    const { messages, displayPrompt } = buildTurns(job.case_, job.input);
     const base: Omit<CaseResult, "status" | "output" | "tokensIn" | "tokensOut" | "cost" | "priced" | "latencyMs"> = {
       caseId: job.case_.id,
       inputIndex: job.inputIndex,
@@ -171,27 +203,41 @@ export async function run(
       provider: job.target.provider,
       effort: job.target.effort,
       mode: job.target.mode,
-      prompt,
+      prompt: displayPrompt,
       system: job.case_.system,
       rubric: job.case_.rubric,
     };
 
+    const req = {
+      model: job.target.model,
+      system: job.case_.system,
+      messages,
+      effort: job.target.effort,
+      mode: job.target.mode,
+      temperature: job.target.temperature,
+      topP: job.target.top_p,
+      topK: job.target.top_k,
+    };
+
     let result: CaseResult;
     try {
-      const r: RunResult = await withRetry(
-        () =>
-          job.provider.run({
-            model: job.target.model,
-            system: job.case_.system,
-            messages: [{ role: "user", content: prompt }],
-            effort: job.target.effort,
-            mode: job.target.mode,
-            temperature: job.target.temperature,
-            topP: job.target.top_p,
-            topK: job.target.top_k,
-          }),
-        maxRetries
-      );
+      const key = opts.cache ? cacheKey(job.target.provider, req) : null;
+      const hit = key ? opts.cache!.get(key) : undefined;
+      let cached = false;
+      let r: RunResult;
+      if (hit) {
+        cached = true;
+        r = { ...hit, raw: { cached: true } };
+      } else {
+        r = await withRetry(() => job.provider.run(req), maxRetries);
+        if (key)
+          opts.cache!.set(key, {
+            text: r.text,
+            tokensIn: r.tokensIn,
+            tokensOut: r.tokensOut,
+            latencyMs: r.latencyMs,
+          });
+      }
       const { cost, priced } = costForModel(
         config,
         job.target.model,
@@ -209,6 +255,7 @@ export async function run(
         cost,
         priced,
         latencyMs: r.latencyMs,
+        cached,
         assertions,
         assertionsPass,
       };
@@ -217,7 +264,7 @@ export async function run(
       if (opts.judge && job.case_.rubric) {
         try {
           result.judge = await judgeOutput(
-            { rubric: job.case_.rubric, prompt: prompt, output: r.text },
+            { rubric: job.case_.rubric, prompt: displayPrompt, output: r.text },
             { model: opts.judgeModel }
           );
         } catch (e) {

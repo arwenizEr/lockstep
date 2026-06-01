@@ -64,7 +64,13 @@ export interface CompareReport {
 export function compareRuns(
   runA: RunFile,
   runB: RunFile,
-  opts: { aTargetId?: string; bTargetId?: string; similarityThreshold?: number } = {}
+  opts: {
+    aTargetId?: string;
+    bTargetId?: string;
+    similarityThreshold?: number;
+    /** Per-cell precomputed similarity (keyed caseId#inputIndex), e.g. from embeddings. */
+    similarityOverrides?: Map<string, number>;
+  } = {}
 ): CompareReport {
   const aTargetId = opts.aTargetId ?? runA.targets[0]?.id;
   const bTargetId = opts.bTargetId ?? runB.targets[0]?.id;
@@ -135,6 +141,7 @@ export function compareRuns(
         bCost: b.cost,
         aLatency: a.latencyMs,
         bLatency: b.latencyMs,
+        similarityOverride: opts.similarityOverrides?.get(key),
       },
       threshold
     );

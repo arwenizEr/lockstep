@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
-import { join, extname } from "node:path";
+import { join, extname, isAbsolute, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
+import { parseDataset } from "./dataset.js";
 
 export const AssertSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("json_valid") }),
@@ -14,18 +15,50 @@ export const AssertSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("max_length"), value: z.number().int().nonnegative() }),
   z.object({ type: z.literal("min_length"), value: z.number().int().nonnegative() }),
   z.object({ type: z.literal("json_path"), path: z.string(), equals: z.unknown().optional() }),
+  z.object({
+    type: z.literal("numeric"),
+    // Extracts the first number in the output and checks it. At least one bound
+    // must be given; `tolerance` widens an `equals` into a band.
+    min: z.number().optional(),
+    max: z.number().optional(),
+    equals: z.number().optional(),
+    tolerance: z.number().nonnegative().optional(),
+  }),
+  z.object({
+    // Validate the output's JSON against a small JSON-Schema subset
+    // (type, required, properties, items, enum). Offline, no extra dep.
+    type: z.literal("json_schema"),
+    schema: z.record(z.string(), z.unknown()),
+  }),
 ]);
 
-export const CaseSchema = z.object({
-  id: z.string().min(1),
-  prompt: z.string().min(1),
-  inputs: z.array(z.string()).default([""]),
-  system: z.string().optional(),
-  assert: z.array(AssertSchema).default([]),
-  rubric: z.string().optional(),
+/** A scripted conversation turn for multi-turn cases. System goes in `system`. */
+export const CaseMessageSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string().min(1),
 });
 
+export const CaseSchema = z
+  .object({
+    id: z.string().min(1),
+    /** Single-turn prompt. Mutually exclusive with `messages`. */
+    prompt: z.string().min(1).optional(),
+    /** Multi-turn conversation. Mutually exclusive with `prompt`. */
+    messages: z.array(CaseMessageSchema).min(1).optional(),
+    inputs: z.array(z.string()).default([""]),
+    /** Load `{{input}}` values from a dataset file (path relative to the case file's dir). */
+    inputs_file: z.string().optional(),
+    system: z.string().optional(),
+    assert: z.array(AssertSchema).default([]),
+    rubric: z.string().optional(),
+  })
+  .refine((c) => !!c.prompt !== !!c.messages, {
+    message: "provide exactly one of `prompt` or `messages`",
+    path: ["prompt"],
+  });
+
 export type Assertion = z.infer<typeof AssertSchema>;
+export type CaseMessage = z.infer<typeof CaseMessageSchema>;
 export type Case = z.infer<typeof CaseSchema>;
 
 /** A case file holds one case or an array of cases. */
@@ -64,7 +97,28 @@ export function loadCases(casesDir: string): Case[] {
         throw new Error(`Duplicate case id "${result.data.id}" (in ${file})`);
       }
       seen.add(result.data.id);
-      cases.push(result.data);
+
+      const case_ = result.data;
+      if (case_.inputs_file) {
+        const dsPath = isAbsolute(case_.inputs_file)
+          ? case_.inputs_file
+          : resolve(casesDir, case_.inputs_file);
+        if (!existsSync(dsPath)) {
+          throw new Error(`inputs_file not found for case "${case_.id}" (in ${file}): ${dsPath}`);
+        }
+        let fileInputs: string[];
+        try {
+          fileInputs = parseDataset(dsPath, readFileSync(dsPath, "utf8"));
+        } catch (e) {
+          throw new Error(`Failed to load inputs_file for case "${case_.id}": ${(e as Error).message}`);
+        }
+        // Drop the lone default "" placeholder; keep any explicit inline inputs first.
+        const inline = case_.inputs.filter((i) => i !== "");
+        const merged = [...inline, ...fileInputs];
+        case_.inputs = merged.length > 0 ? merged : [""];
+      }
+
+      cases.push(case_);
     }
   }
   if (cases.length === 0) {

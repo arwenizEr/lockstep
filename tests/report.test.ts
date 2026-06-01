@@ -119,6 +119,23 @@ describe("renderReport", () => {
     expect(html).toMatch(/<p class="verdict">[^<]+<\/p>/);
     expect(html).toContain("1 drifted");
   });
+
+  it("ships sortable tables, a filter input, and a dark-mode toggle (all inline)", () => {
+    expect(html).toContain('class="sortable"');
+    expect(html).toContain('data-sort="num"');
+    expect(html).toContain('id="filter"');
+    expect(html).toContain('id="theme"');
+    expect(html).toContain("force-dark");
+    expect(html).toContain("prefers-color-scheme:dark");
+    // still no external resources
+    expect(html).not.toMatch(/src=["']https?:/i);
+    expect(html).not.toMatch(/<link[^>]+href=/i);
+  });
+
+  it("exposes machine-sortable values on numeric cells", () => {
+    // similarity 0.6 in the verdict table
+    expect(html).toContain('data-v="0.6"');
+  });
 });
 
 describe("renderReport headline verdict", () => {

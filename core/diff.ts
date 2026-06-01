@@ -104,6 +104,72 @@ function resolvePath(root: unknown, path: string): { found: boolean; value: unkn
   return { found: true, value: cur };
 }
 
+/** First numeric literal in the text (handles signs, decimals, thousands). */
+function firstNumber(text: string): number | null {
+  const m = text.replace(/,(?=\d{3}\b)/g, "").match(/-?\d+(?:\.\d+)?/);
+  if (!m) return null;
+  const n = Number(m[0]);
+  return Number.isFinite(n) ? n : null;
+}
+
+const jsType = (v: unknown): string => {
+  if (v === null) return "null";
+  if (Array.isArray(v)) return "array";
+  if (Number.isInteger(v)) return "integer";
+  return typeof v; // object | number | string | boolean
+};
+
+/**
+ * Validate `value` against a small JSON-Schema subset, collecting human paths to
+ * the first failures. Supports: type (incl. "integer"), required, properties,
+ * items, enum. Unknown keywords are ignored (lenient by design).
+ */
+function validateJsonSchema(
+  value: unknown,
+  schema: Record<string, unknown>,
+  path = "$",
+  errors: string[] = []
+): string[] {
+  const t = schema.type as string | string[] | undefined;
+  if (t !== undefined) {
+    const allowed = Array.isArray(t) ? t : [t];
+    const actual = jsType(value);
+    // "integer" satisfies "number"; an integer value also satisfies "integer".
+    const ok = allowed.some(
+      (a) => a === actual || (a === "number" && actual === "integer")
+    );
+    if (!ok) errors.push(`${path}: expected ${allowed.join("|")}, got ${actual}`);
+  }
+  if (Array.isArray(schema.enum)) {
+    const set = schema.enum.map((e) => JSON.stringify(e));
+    if (!set.includes(JSON.stringify(value))) {
+      errors.push(`${path}: ${JSON.stringify(value)} not in enum`);
+    }
+  }
+  if (value != null && typeof value === "object" && !Array.isArray(value)) {
+    const obj = value as Record<string, unknown>;
+    if (Array.isArray(schema.required)) {
+      for (const key of schema.required as string[]) {
+        if (!(key in obj)) errors.push(`${path}.${key}: required`);
+      }
+    }
+    const props = schema.properties as Record<string, unknown> | undefined;
+    if (props) {
+      for (const [key, sub] of Object.entries(props)) {
+        if (key in obj && sub && typeof sub === "object") {
+          validateJsonSchema(obj[key], sub as Record<string, unknown>, `${path}.${key}`, errors);
+        }
+      }
+    }
+  }
+  if (Array.isArray(value) && schema.items && typeof schema.items === "object") {
+    value.forEach((el, i) =>
+      validateJsonSchema(el, schema.items as Record<string, unknown>, `${path}[${i}]`, errors)
+    );
+  }
+  return errors;
+}
+
 export function runAssertion(assertion: Assertion, output: string): AssertionResult {
   switch (assertion.type) {
     case "json_valid": {
@@ -201,6 +267,30 @@ export function runAssertion(assertion: Assertion, output: string): AssertionRes
       }
       return { type: "json_path", pass: true };
     }
+    case "numeric": {
+      const n = firstNumber(output);
+      if (n === null) return { type: "numeric", pass: false, detail: "no number found in output" };
+      const fails: string[] = [];
+      if (assertion.equals !== undefined) {
+        const tol = assertion.tolerance ?? 0;
+        if (Math.abs(n - assertion.equals) > tol) {
+          fails.push(`${n} != ${assertion.equals}${tol ? ` (±${tol})` : ""}`);
+        }
+      }
+      if (assertion.min !== undefined && n < assertion.min) fails.push(`${n} < min ${assertion.min}`);
+      if (assertion.max !== undefined && n > assertion.max) fails.push(`${n} > max ${assertion.max}`);
+      return { type: "numeric", pass: fails.length === 0, detail: fails.length ? fails.join("; ") : undefined };
+    }
+    case "json_schema": {
+      const parsed = tryParseJson(output);
+      if (!parsed.ok) return { type: "json_schema", pass: false, detail: "invalid JSON" };
+      const errors = validateJsonSchema(parsed.value, assertion.schema);
+      return {
+        type: "json_schema",
+        pass: errors.length === 0,
+        detail: errors.length ? errors.slice(0, 4).join("; ") : undefined,
+      };
+    }
     default: {
       // Exhaustiveness guard.
       const _never: never = assertion;
@@ -252,6 +342,8 @@ export interface CompareInput {
   /** Assertion failure on either side also counts as BROKEN. */
   aAssertFail?: boolean;
   bAssertFail?: boolean;
+  /** Precomputed similarity (e.g. embeddings) used instead of bag-of-words cosine. */
+  similarityOverride?: number;
 }
 
 const COST_EPSILON = 1e-9;
@@ -269,7 +361,9 @@ export function compareCell(
   const similarity =
     input.aBroken || input.bBroken
       ? 0
-      : cosineSimilarity(input.aOutput, input.bOutput);
+      : input.similarityOverride !== undefined
+        ? input.similarityOverride
+        : cosineSimilarity(input.aOutput, input.bOutput);
   const drifted = !broken && similarity < similarityThreshold;
 
   const costDelta = input.bCost - input.aCost;
