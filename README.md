@@ -19,6 +19,12 @@ changed in the output — and what it now costs — in one shareable report.
 
 ---
 
+[![Lockstep report](docs/report-screenshot.png)](examples/sample-report.html)
+
+<div align="center"><sub>The report is one self-contained HTML file. <a href="examples/sample-report.html">Open the live sample →</a></sub></div>
+
+---
+
 > Free and open source ([MIT](LICENSE)). No accounts, no cloud, no telemetry — it
 > runs entirely on your machine.
 
