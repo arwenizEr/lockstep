@@ -262,3 +262,49 @@ export function writeRunFile(baseDir: string, runFile: RunFile): string {
   writeFileSync(path, JSON.stringify(runFile, null, 2), "utf8");
   return path;
 }
+
+export interface RunSummary {
+  targets: string[];
+  total: number;
+  broken: number;
+  totalCost: number;
+}
+
+/** One-line summary of a run, for `lockstep list`. */
+export function describeRun(run: RunFile): RunSummary {
+  return {
+    targets: run.targets.map((t) => t.id),
+    total: run.results.length,
+    broken: run.results.filter((r) => r.status === "BROKEN").length,
+    totalCost: run.results.reduce((n, r) => n + r.cost, 0),
+  };
+}
+
+export interface RunPlan {
+  perTarget: { id: string; model: string; cells: number; priced: boolean }[];
+  totalCells: number;
+}
+
+/**
+ * Compute what a run *would* do without calling any provider — the case×input×
+ * target matrix and which target models have no price entry. Powers --dry-run.
+ */
+export function planRun(
+  config: Config,
+  cases: Case[],
+  targetIds?: string[]
+): RunPlan {
+  let targets = config.targets;
+  if (targetIds && targetIds.length > 0) {
+    const set = new Set(targetIds);
+    targets = targets.filter((t) => set.has(t.id));
+  }
+  const inputsTotal = cases.reduce((n, c) => n + c.inputs.length, 0);
+  const perTarget = targets.map((t) => ({
+    id: t.id,
+    model: t.model,
+    cells: inputsTotal,
+    priced: config.pricing[t.model] !== undefined,
+  }));
+  return { perTarget, totalCells: inputsTotal * targets.length };
+}

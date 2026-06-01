@@ -59,7 +59,7 @@ function wordDiff(a: string, b: string): { a: string; b: string } {
 // ---------------------------------------------------------------------------
 
 /** One-line human verdict: "claude-opus-4-8: 2 drifted, 1 broke, ~18% cheaper, 1.3x faster". */
-function headlineVerdict(report: CompareReport): string {
+export function headlineVerdict(report: CompareReport): string {
   const s = report.summary;
   const parts: string[] = [];
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
-import { join, isAbsolute, resolve } from "node:path";
+import { join, isAbsolute, resolve, basename } from "node:path";
 import { Command } from "commander";
 import { loadDotenv } from "../core/env.js";
 import { loadConfig } from "../core/config.js";
@@ -8,9 +8,18 @@ import { loadConfig } from "../core/config.js";
 // Load .env (cwd) before anything reads API keys. Real env vars win.
 loadDotenv();
 import { loadCases } from "../core/cases.js";
-import { run, writeRunFile, type RunFile, type CaseResult } from "../core/runner.js";
+import {
+  run,
+  writeRunFile,
+  describeRun,
+  planRun,
+  type RunFile,
+  type CaseResult,
+} from "../core/runner.js";
 import { loadRunFile, compareRuns, type CompareReport } from "../core/compare.js";
 import { renderReport } from "../core/report.js";
+import { renderMarkdown } from "../core/report-md.js";
+import { renderJUnit } from "../core/junit.js";
 import { evaluateGate } from "../core/gate.js";
 
 const program = new Command();
@@ -70,15 +79,35 @@ program
   .option("-c, --concurrency <n>", "max concurrent requests", "4")
   .option("--judge", "enable tier-2 LLM-as-judge (opt-in, costs tokens)", false)
   .option("--judge-model <model>", "judge model (default claude-haiku-4-5)")
+  .option("--junit <file>", "also write a JUnit XML report (for CI)")
+  .option("--dry-run", "show the run matrix and exit without calling providers", false)
   .action(
     async (opts: {
       target: string[];
       concurrency: string;
       judge: boolean;
       judgeModel?: string;
+      junit?: string;
+      dryRun: boolean;
     }) => {
       const loaded = loadConfig();
       const cases = loadCases(loaded.casesDir);
+
+      if (opts.dryRun) {
+        const plan = planRun(loaded.config, cases, opts.target);
+        console.log(`Dry run — ${plan.totalCells} cell(s), no providers called:\n`);
+        printTable(
+          ["target", "model", "cells", "priced"],
+          plan.perTarget.map((t) => [t.id, t.model, String(t.cells), t.priced ? "yes" : "NO"])
+        );
+        if (plan.perTarget.some((t) => !t.priced)) {
+          console.log(
+            "\n  NO = no price entry; cost will show as ~ until you add it under `pricing:`."
+          );
+        }
+        return;
+      }
+
       const concurrency = Math.max(1, parseInt(opts.concurrency, 10) || 4);
 
       const total =
@@ -118,6 +147,13 @@ program
 
       const path = writeRunFile(loaded.baseDir, runFile);
       console.log(`\nSaved run -> ${path}\n`);
+      if (opts.junit) {
+        const junitPath = isAbsolute(opts.junit)
+          ? opts.junit
+          : resolve(process.cwd(), opts.junit);
+        writeFileSync(junitPath, renderJUnit(runFile), "utf8");
+        console.log(`Wrote JUnit XML -> ${junitPath}\n`);
+      }
       printSummary(runFile);
     }
   );
@@ -160,34 +196,79 @@ program
 // ---------------------------------------------------------------------------
 program
   .command("report [runA] [runB]")
-  .description("Generate a self-contained shareable HTML report from two runs")
-  .option("-o, --out <file>", "output html path", "lockstep-report.html")
+  .description("Generate a shareable report from two runs (HTML or Markdown)")
+  .option("-o, --out <file>", "output path (default depends on --format)")
+  .option("-f, --format <fmt>", "report format: html | md", "html")
   .option("--a-target <id>", "which target in run A to compare")
   .option("--b-target <id>", "which target in run B to compare")
+  .option(
+    "--fail-on <statuses>",
+    "exit non-zero if any pair has these statuses (comma-separated: drifted,broken,pricier,slower,cheaper,faster)"
+  )
   .action(
     (
       runA: string | undefined,
       runB: string | undefined,
-      opts: { out: string; aTarget?: string; bTarget?: string }
+      opts: {
+        out?: string;
+        format: string;
+        aTarget?: string;
+        bTarget?: string;
+        failOn?: string;
+      }
     ) => {
+      const format = opts.format.toLowerCase();
+      if (format !== "html" && format !== "md") {
+        throw new Error(`Unknown --format "${opts.format}". Use html or md.`);
+      }
       const [pa, pb] = resolveRunPair(runA, runB);
       const report = compareRuns(loadRunFile(pa), loadRunFile(pb), {
         aTargetId: opts.aTarget,
         bTargetId: opts.bTarget,
       });
       report.generatedAt = new Date().toISOString();
-      const html = renderReport(report);
-      const outPath = isAbsolute(opts.out)
-        ? opts.out
-        : resolve(process.cwd(), opts.out);
-      writeFileSync(outPath, html, "utf8");
-      console.log(`Wrote report -> ${outPath}`);
+      const out =
+        opts.out ?? (format === "md" ? "lockstep-report.md" : "lockstep-report.html");
+      const content = format === "md" ? renderMarkdown(report) : renderReport(report);
+      const outPath = isAbsolute(out) ? out : resolve(process.cwd(), out);
+      writeFileSync(outPath, content, "utf8");
+      console.log(`Wrote ${format} report -> ${outPath}`);
       console.log(
         `  ${report.aTargetId} vs ${report.bTargetId} · ${report.summary.total} cases · ` +
           `${report.summary.drifted} drifted · ${report.summary.broken} broken`
       );
+      applyGate(report, opts.failOn);
     }
   );
+
+// ---------------------------------------------------------------------------
+// list
+// ---------------------------------------------------------------------------
+program
+  .command("list")
+  .description("List saved runs in .lockstep/runs (newest first)")
+  .action(() => {
+    const runs = listRuns();
+    if (runs.length === 0) {
+      console.log("No runs yet. Run `lockstep run` first.");
+      return;
+    }
+    const rows = runs.map((p) => {
+      try {
+        const d = describeRun(loadRunFile(p));
+        return [
+          basename(p),
+          d.targets.join(","),
+          String(d.total),
+          String(d.broken),
+          fmtUsd(d.totalCost),
+        ];
+      } catch {
+        return [basename(p), "(unreadable)", "-", "-", "-"];
+      }
+    });
+    printTable(["run", "targets", "results", "broken", "cost"], rows);
+  });
 
 // ---------------------------------------------------------------------------
 // helpers
