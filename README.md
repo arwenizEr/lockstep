@@ -109,7 +109,7 @@ lockstep compare
 | `lockstep run` | Run every case × input × target; record output, tokens, cost, and latency to `.lockstep/runs/`. Flags: `--target <id>` (repeatable), `--concurrency <n>`, `--judge`, `--judge-model <model>`, `--junit <file>`, `--max-cost <usd>`, `--cache`, `--redact` / `--plaintext`, `--watch`, `--dry-run`. |
 | `lockstep compare [A] [B]` | Diff two runs per case (similarity, cost/latency delta, status). Omit the paths to diff against a pinned baseline, else the two most recent runs. Flags: `--a-target`, `--b-target`, `--fail-on <statuses>`, `--json`, `--semantic`, `--judge-pairwise`. |
 | `lockstep report [A] [B]` | Generate the report. Flags: `--format <html\|md>`, `-o <file>`, `--a-target`, `--b-target`, `--fail-on <statuses>`, `--semantic`. |
-| `lockstep trend` | Show how a target's similarity, cost, and latency move across many saved runs (sparklines). Flags: `--target <id>`, `--last <n>`. |
+| `lockstep trend` | Show how a target's similarity, cost, and latency move across many saved runs (terminal sparklines, or a self-contained HTML report with `--html`). Flags: `--target <id>`, `--last <n>`, `--html`, `-o <file>`. |
 | `lockstep baseline set\|show\|clear` | Pin a golden run that `compare`/`report` diff against by default. `set [run]` defaults to the newest run; `--target <id>` pins a target. |
 | `lockstep list` | List saved runs in `.lockstep/runs/` (newest first). |
 
@@ -225,7 +225,7 @@ model-correct extended-thinking shape. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```bash
 npm install
-npm test           # 246 vitest tests (offline; includes a CLI smoke test, no API key required)
+npm test           # 254 vitest tests (offline; includes a CLI smoke test, no API key required)
 npm run dev -- run # run the CLI from source via tsx
 npm run build      # type-check and compile to dist/
 ```

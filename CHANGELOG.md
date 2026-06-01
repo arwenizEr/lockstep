@@ -8,6 +8,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`lockstep trend --html`** — render the many-run trend as a self-contained
+  HTML report (inline SVG charts, no CDN), the same shareable-artifact treatment
+  the compare report already gets.
 - **Datasets** — a case can pull `{{input}}` values from `inputs_file`
   (`.jsonl`/`.json`/`.csv`/`.txt`) instead of an inline list.
 - **Multi-turn cases** — a case can script a `messages` conversation instead of a

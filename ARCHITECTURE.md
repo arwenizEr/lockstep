@@ -21,6 +21,7 @@ core/
   embed.ts                   Tier-1.5 embedding similarity (opt-in; injectable)
   compare.ts                 pair two runs by case and aggregate               (pure)
   trend.ts                   many-run trend + sparklines                       (pure)
+  trend-report.ts            self-contained HTML trend report (inline SVG)     (pure)
   baseline.ts                pin/read/clear a golden run pointer
   gate.ts                    the --fail-on CI gate decision                    (pure)
   judge.ts                   Tier-2 LLM-as-judge: absolute score + pairwise (opt-in)
