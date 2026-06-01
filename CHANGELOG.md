@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Tier-1 similarity is now JSON-aware** — when both outputs parse as JSON they
+  are compared structurally (key order + whitespace normalized), so equivalent
+  JSON scores 1.0 instead of false-flagging `DRIFTED`. Falls back to bag-of-words
+  cosine for non-JSON or non-equal JSON. Still offline and token-free.
+
 ### Added
 
 - **Datasets** — a case can pull `{{input}}` values from `inputs_file`
