@@ -106,7 +106,7 @@ lockstep compare
 |---|---|
 | `lockstep ask [prompt]` | Run one prompt (arg, `--file`, or stdin) against every target and compare side-by-side. Add `--all` to hit the built-in roster of all current models with **no config at all**. |
 | `lockstep init` | Scaffold `lockstep.yaml` and `cases/example.yaml`. |
-| `lockstep run` | Run every case × input × target; record output, tokens, cost, and latency to `.lockstep/runs/`. Flags: `--target <id>` (repeatable), `--concurrency <n>`, `--judge`, `--judge-model <model>`, `--junit <file>`, `--max-cost <usd>`, `--cache`, `--redact` / `--plaintext`, `--watch`, `--dry-run`. |
+| `lockstep run` | Run every case × input × target; record output, tokens, cost, and latency to `.lockstep/runs/`. Flags: `--target <id>` (repeatable), `--concurrency <n>`, `--judge`, `--judge-model <model>`, `--junit <file>`, `--max-cost <usd>`, `--fail-on-assert`, `--cache`, `--redact` / `--plaintext`, `--watch`, `--dry-run`. |
 | `lockstep compare [A] [B]` | Diff two runs per case (similarity, cost/latency delta, status). Omit the paths to diff against a pinned baseline, else the two most recent runs. Flags: `--a-target`, `--b-target`, `--fail-on <statuses>`, `--json`, `--semantic`, `--judge-pairwise`. |
 | `lockstep report [A] [B]` | Generate the report. Flags: `--format <html\|md>`, `-o <file>`, `--a-target`, `--b-target`, `--fail-on <statuses>`, `--semantic`. |
 | `lockstep trend` | Show how a target's similarity, cost, and latency move across many saved runs (sparklines). Flags: `--target <id>`, `--last <n>`. |
@@ -135,7 +135,8 @@ listed status is present, so a prompt regression fails the build:
 
 ```bash
 lockstep run --junit results.xml            # JUnit XML for the CI test view
-lockstep compare --fail-on drifted,broken   # exit 1 if anything drifted or broke
+lockstep run --fail-on-assert               # exit 1 on any BROKEN cell or failed assertion (one run, no baseline)
+lockstep compare --fail-on drifted,broken   # exit 1 if anything drifted or broke (vs a prior/baseline run)
 ```
 
 Accepted statuses: `drifted`, `broken`, `pricier`, `slower`, `cheaper`, `faster`.
@@ -225,7 +226,7 @@ model-correct extended-thinking shape. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```bash
 npm install
-npm test           # 246 vitest tests (offline; includes a CLI smoke test, no API key required)
+npm test           # 250 vitest tests (offline; includes a CLI smoke test, no API key required)
 npm run dev -- run # run the CLI from source via tsx
 npm run build      # type-check and compile to dist/
 ```

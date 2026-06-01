@@ -13,6 +13,7 @@ import {
   writeRunFile,
   describeRun,
   planRun,
+  runFailures,
   type RunFile,
   type CaseResult,
 } from "../core/runner.js";
@@ -91,6 +92,7 @@ program
   .option("--judge-model <model>", "judge model (default claude-haiku-4-5)")
   .option("--junit <file>", "also write a JUnit XML report (for CI)")
   .option("--max-cost <usd>", "fail (exit 1) if the run's total cost exceeds this budget")
+  .option("--fail-on-assert", "exit 1 if any case is BROKEN or fails an assertion (gate a single run)", false)
   .option("--cache", "reuse cached responses for unchanged cases (skips the call + cost)", false)
   .option("--redact", "scrub secrets/PII from the saved run + report (built-ins + config patterns)", false)
   .option("--plaintext", "force redaction off even if configured in lockstep.yaml", false)
@@ -104,6 +106,7 @@ program
       judgeModel?: string;
       junit?: string;
       maxCost?: string;
+      failOnAssert: boolean;
       cache: boolean;
       redact: boolean;
       plaintext: boolean;
@@ -207,6 +210,18 @@ program
           console.log(
             `\n  ok within budget: ${fmtUsd(budget.total)} <= ${fmtUsd(budget.limit)}`
           );
+        }
+      }
+
+      if (opts.failOnAssert) {
+        const f = runFailures(runFile);
+        if (f.total > 0) {
+          console.error(
+            `\n  x run gate failed (--fail-on-assert): ${f.broken} broken, ${f.assertionFailed} assertion failure(s)`
+          );
+          if (!watching) process.exitCode = 1;
+        } else {
+          console.log("\n  ok run gate passed (--fail-on-assert): no broken cells or assertion failures");
         }
       }
       }; // end once()

@@ -8,6 +8,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`run --fail-on-assert`** — exit non-zero if any case is BROKEN or fails an
+  assertion, so a single `run` gates CI without needing a second run to compare
+  (complements `compare --fail-on`). Backed by a pure `runFailures()`.
 - **Datasets** — a case can pull `{{input}}` values from `inputs_file`
   (`.jsonl`/`.json`/`.csv`/`.txt`) instead of an inline list.
 - **Multi-turn cases** — a case can script a `messages` conversation instead of a
