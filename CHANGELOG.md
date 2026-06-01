@@ -8,6 +8,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Datasets** — a case can pull `{{input}}` values from `inputs_file`
+  (`.jsonl`/`.json`/`.csv`/`.txt`) instead of an inline list.
+- **Multi-turn cases** — a case can script a `messages` conversation instead of a
+  single `prompt`; `{{input}}` is substituted in every turn.
+- **Assertions** — `json_schema` (JSON-Schema subset: type/required/properties/
+  items/enum) and `numeric` (`min`/`max`/`equals` with `tolerance`).
+- **`run --cache`** — hash-keyed response cache (`.lockstep/cache/`); unchanged
+  cases skip the provider call and its cost.
+- **`run --max-cost <usd>`** — fail the run when total spend exceeds a budget.
+- **`run --redact` / config `redact:`** — scrub secrets/PII (API keys, bearer
+  tokens, emails, AWS keys, custom regex) from the saved run + report.
+- **`run --watch`** — re-run on changes to the cases dir or `lockstep.yaml`.
+- **`lockstep trend`** — similarity/cost/latency across many runs, with
+  sparklines.
+- **`lockstep baseline set|show|clear`** — pin a golden run that `compare`/
+  `report` diff against by default.
+- **`compare --semantic`** — embedding-based (OpenAI) similarity instead of
+  bag-of-words.
+- **`compare --judge-pairwise`** — LLM picks the better of A vs B per case.
+- **Report UX** — sortable columns, a case/status filter, and a dark-mode toggle
+  (still one self-contained, offline HTML file).
+- **GitHub Action** — `.github/actions/lockstep` composite action and
+  `examples/ci/github-actions.yml` to run prompt-CI on PRs and post the report.
 - `lockstep ask [prompt]` — run one ad-hoc prompt (positional argument,
   `--file <path>`, or piped stdin) against every configured target and print a
   side-by-side comparison, with no cases file.

@@ -98,7 +98,39 @@ Saved run -> .lockstep/runs/2026-06-01T07-23-28-823Z.json
 ```
 
 Flags: `-t, --target <id>` (repeatable), `-c, --concurrency <n>`, `--judge`,
-`--judge-model <model>`, `--junit <file>`, `--dry-run`.
+`--judge-model <model>`, `--junit <file>`, `--max-cost <usd>`, `--cache`,
+`--redact` / `--plaintext`, `--watch`, `--dry-run`.
+
+### `run --cache` — reuse responses for unchanged cases
+
+```bash
+lockstep run --cache   # a re-run reuses .lockstep/cache/ for identical cells
+```
+
+Cache keys cover provider, model, system, the full message array, effort/mode and
+sampling params — any change misses the cache and calls the provider. Cached cells
+show `hit` in the progress line and replay the original latency.
+
+### `run --max-cost` — budget gate
+
+```bash
+lockstep run --max-cost 0.50 ; echo "exit: $?"   # exit 1 if the run cost > $0.50
+```
+
+### `run --redact` — scrub secrets before sharing
+
+```bash
+lockstep run --redact   # masks API keys, bearer tokens, emails, AWS keys in the saved run + report
+```
+
+Add custom patterns under `redact:` in `lockstep.yaml` (any pattern present turns
+redaction on automatically); `--plaintext` forces it off for a one-off run.
+
+### `run --watch` — re-run on change
+
+```bash
+lockstep run --watch    # re-runs whenever a case file or lockstep.yaml changes (Ctrl-C to stop)
+```
 
 ### `run --dry-run` — preview without calling providers
 
@@ -158,7 +190,21 @@ lockstep compare runA.json runB.json --a-target gpt-4o-mini --b-target opus
   total cost: $0.0000 (A) -> $0.0017 (B)
 ```
 
-Flags: `--a-target`, `--b-target`, `--fail-on <statuses>`, `--json`.
+Flags: `--a-target`, `--b-target`, `--fail-on <statuses>`, `--json`, `--semantic`,
+`--judge-pairwise`, `--judge-model <model>`. With no run paths, `compare` diffs
+against a pinned baseline if one is set (see `baseline` below), else the two most
+recent runs.
+
+### `compare --semantic` / `--judge-pairwise` — stronger drift signals
+
+```bash
+lockstep compare --semantic         # embedding cosine instead of bag-of-words (OpenAI)
+lockstep compare --judge-pairwise   # an LLM picks the better of A vs B per case
+```
+
+`--semantic` stops counting reordered-but-equivalent output (e.g. JSON keys in a
+different order) as drift. `--judge-pairwise` prints an A-vs-B winners table for
+cases that define a `rubric`. Both cost tokens and are off by default.
 
 ### `compare --fail-on` — gate CI
 
@@ -189,7 +235,49 @@ Wrote html report -> lockstep-report.html
 The HTML report is a single self-contained file (see
 [`examples/sample-report.html`](../examples/sample-report.html) and the
 screenshot in the [README](../README.md)). Flags: `-o <file>`,
-`--format <html|md>`, `--a-target`, `--b-target`, `--fail-on <statuses>`.
+`--format <html|md>`, `--a-target`, `--b-target`, `--fail-on <statuses>`,
+`--semantic`. The HTML report's tables are sortable (click a header), filterable
+(the search box over cases/statuses), and have a dark-mode toggle — all inline, so
+the file still opens offline.
+
+---
+
+## `lockstep trend` — track a suite across many runs
+
+Shows how one target's outputs, cost, and latency move across every saved run —
+the slow drift a two-run `compare` can't see.
+
+```bash
+lockstep trend                 # first target, all runs
+lockstep trend --target opus --last 10
+```
+
+```text
+  trend for opus · 4 runs (oldest → newest)
+
+  case                  similarity-to-first  first → last
+  --------------------  -------------------  ------------
+  extract-invoice#0     █████                100% → 72%
+  summarize-one-line#0  ████                 100% → 100%
+
+  cost     ▁▃▅█  $0.0012 → $0.0017
+  latency  ▅▁▄█  120ms → 180ms
+```
+
+---
+
+## `lockstep baseline` — pin a golden run
+
+```bash
+lockstep baseline set                 # pin the newest run
+lockstep baseline set runs/good.json --target opus
+lockstep baseline show
+lockstep baseline clear
+```
+
+Once a baseline is pinned, `lockstep compare` and `lockstep report` with no run
+arguments diff the newest run against the baseline instead of against the previous
+run — so the suite is always measured against a known-good snapshot.
 
 ---
 

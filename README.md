@@ -106,13 +106,27 @@ lockstep compare
 |---|---|
 | `lockstep ask [prompt]` | Run one prompt (arg, `--file`, or stdin) against every target and compare side-by-side. Add `--all` to hit the built-in roster of all current models with **no config at all**. |
 | `lockstep init` | Scaffold `lockstep.yaml` and `cases/example.yaml`. |
-| `lockstep run` | Run every case × input × target; record output, tokens, cost, and latency to `.lockstep/runs/`. Flags: `--target <id>` (repeatable), `--concurrency <n>`, `--judge`, `--judge-model <model>`, `--junit <file>`, `--dry-run`. |
-| `lockstep compare [A] [B]` | Diff two runs per case (similarity, cost/latency delta, status). Omit the paths to diff the two most recent runs. Flags: `--a-target`, `--b-target`, `--fail-on <statuses>`, `--json`. |
-| `lockstep report [A] [B]` | Generate the report. Flags: `--format <html\|md>`, `-o <file>`, `--a-target`, `--b-target`, `--fail-on <statuses>`. |
+| `lockstep run` | Run every case × input × target; record output, tokens, cost, and latency to `.lockstep/runs/`. Flags: `--target <id>` (repeatable), `--concurrency <n>`, `--judge`, `--judge-model <model>`, `--junit <file>`, `--max-cost <usd>`, `--cache`, `--redact` / `--plaintext`, `--watch`, `--dry-run`. |
+| `lockstep compare [A] [B]` | Diff two runs per case (similarity, cost/latency delta, status). Omit the paths to diff against a pinned baseline, else the two most recent runs. Flags: `--a-target`, `--b-target`, `--fail-on <statuses>`, `--json`, `--semantic`, `--judge-pairwise`. |
+| `lockstep report [A] [B]` | Generate the report. Flags: `--format <html\|md>`, `-o <file>`, `--a-target`, `--b-target`, `--fail-on <statuses>`, `--semantic`. |
+| `lockstep trend` | Show how a target's similarity, cost, and latency move across many saved runs (sparklines). Flags: `--target <id>`, `--last <n>`. |
+| `lockstep baseline set\|show\|clear` | Pin a golden run that `compare`/`report` diff against by default. `set [run]` defaults to the newest run; `--target <id>` pins a target. |
 | `lockstep list` | List saved runs in `.lockstep/runs/` (newest first). |
 
 Two targets within a single run can be compared by passing the same run file
 twice with `--a-target` / `--b-target`.
+
+### Run economics: cache, budget, watch
+
+- **`--cache`** reuses saved responses for unchanged cases (same provider, model,
+  messages, and params), so iterating on a report costs nothing for cells that
+  didn't change. Cache lives in `.lockstep/cache/`.
+- **`--max-cost <usd>`** fails the run (exit 1) if the total spend exceeds the
+  budget — a guardrail for CI and for `ask --all`.
+- **`--watch`** re-runs automatically when a case file or `lockstep.yaml` changes.
+- **`--redact`** scrubs secrets/PII (API keys, bearer tokens, emails, AWS keys,
+  plus any regex under `redact:` in config) from the *saved* run and report before
+  they're shared. `--plaintext` forces it off.
 
 ### Gating CI
 
@@ -130,6 +144,12 @@ writes a JUnit report for CI dashboards, and `report --format md` renders a
 Markdown summary suitable for a pull-request comment. Use `run --dry-run` to
 preview the run matrix and pricing without spending tokens.
 
+A ready-to-use GitHub Action and example workflow ship in
+[`.github/actions/lockstep`](.github/actions/lockstep/action.yml) and
+[`examples/ci/github-actions.yml`](examples/ci/github-actions.yml): commit a
+baseline run, and every PR replays the suite, diffs it against the baseline,
+gates on drift/breakage, and posts the Markdown report as a PR comment.
+
 ## Defining test cases
 
 ```yaml
@@ -144,17 +164,46 @@ preview the run matrix and pricing without spending tokens.
   rubric: "Did it extract all three fields without hallucinating?"   # Tier 2: opt-in judge
 ```
 
-Assertion types: `json_valid`, `json_has_keys`, `contains`, `not_contains`,
-`icontains`, `equals`, `regex`, `max_length`, `min_length`, `json_path`.
+Assertion types: `json_valid`, `json_has_keys`, `json_schema` (validate against a
+JSON-Schema subset), `numeric` (extract a number and check `min`/`max`/`equals`
+with `tolerance`), `contains`, `not_contains`, `icontains`, `equals`, `regex`,
+`max_length`, `min_length`, `json_path`.
+
+### Datasets and multi-turn
+
+Inputs can come from a file instead of an inline list, and a case can script a
+whole conversation instead of a single prompt:
+
+```yaml
+- id: classify
+  prompt: "Classify the sentiment of: {{input}}"
+  inputs_file: data/reviews.jsonl    # .jsonl / .json / .csv / .txt
+
+- id: refund-bot
+  system: "You are a terse support agent."
+  messages:                          # multi-turn; {{input}} is substituted per turn
+    - { role: user, content: "I want a refund." }
+    - { role: assistant, content: "What's the order number?" }
+    - { role: user, content: "{{input}}" }
+  inputs: ["Order 5512, it arrived broken."]
+```
+
+`inputs_file` accepts `.jsonl`/`.ndjson` (one JSON string or `{input: …}` per
+line), `.json` (an array), `.csv` (an `input` column or the first column), and
+`.txt` (one input per line). Inline `inputs` are kept and the file's appended.
 
 ## Drift detection, in two tiers
 
 - **Tier 1 — default, deterministic, offline, free.** Bag-of-words cosine
   similarity, length delta, JSON validity, and your assertions. Anything below the
   configured `similarity_threshold` is flagged `DRIFTED`.
+- **Tier 1.5 — opt-in (`compare --semantic`), spends tokens.** Replaces
+  bag-of-words cosine with OpenAI-embedding cosine, so a reordered-but-equivalent
+  output (e.g. JSON keys in a different order) no longer reads as drift.
 - **Tier 2 — opt-in (`--judge`), spends tokens.** A model scores each output
   against the case `rubric` (0–1 plus a one-line reason). Disabled by default so a
-  plain run stays cheap.
+  plain run stays cheap. `compare --judge-pairwise` instead asks the judge to pick
+  the better of A vs B per case — a stronger signal than two absolute scores.
 
 ## Cross-provider by design
 
@@ -176,7 +225,7 @@ model-correct extended-thinking shape. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```bash
 npm install
-npm test           # 163 vitest tests (offline; includes a CLI smoke test, no API key required)
+npm test           # 246 vitest tests (offline; includes a CLI smoke test, no API key required)
 npm run dev -- run # run the CLI from source via tsx
 npm run build      # type-check and compile to dist/
 ```

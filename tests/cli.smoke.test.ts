@@ -102,4 +102,62 @@ describe("CLI (built binary, mock provider)", () => {
     expect(r.status).toBe(0);
     expect(r.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
   });
+
+  it("run --max-cost fails when the budget is exceeded", () => {
+    const over = lockstep(["run", "--max-cost", "0"]);
+    expect(over.status).toBe(1);
+    expect(over.stderr + over.stdout).toMatch(/budget exceeded/);
+    const under = lockstep(["run", "--max-cost", "999"]);
+    expect(under.status).toBe(0);
+    expect(under.stdout).toMatch(/within budget/);
+  });
+
+  it("run --cache serves a hit on the second identical run", () => {
+    expect(lockstep(["run", "--cache"]).status).toBe(0);
+    const second = lockstep(["run", "--cache"]);
+    expect(second.status).toBe(0);
+    expect(second.stdout).toContain("hit");
+    expect(existsSync(join(dir, ".lockstep", "cache"))).toBe(true);
+  });
+
+  it("run --redact announces redaction is on", () => {
+    const r = lockstep(["run", "--redact"]);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/Redaction: ON/);
+  });
+
+  it("trend shows movement across runs", () => {
+    const r = lockstep(["trend"]);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("trend for");
+  });
+
+  it("baseline set / show / clear round-trips and pins compare", () => {
+    const set = lockstep(["baseline", "set"]);
+    expect(set.status).toBe(0);
+    expect(set.stdout).toContain("Pinned baseline");
+    expect(lockstep(["baseline", "show"]).stdout).toContain("Baseline:");
+    // compare with no args now uses the baseline as A
+    expect(lockstep(["compare"]).status).toBe(0);
+    const cleared = lockstep(["baseline", "clear"]);
+    expect(cleared.stdout).toContain("cleared");
+  });
+
+  it("loads a multi-turn + dataset case end to end", () => {
+    writeFileSync(join(dir, "cases", "data.jsonl"), '"alpha"\n"beta"\n');
+    writeFileSync(
+      join(dir, "cases", "chat.yaml"),
+      [
+        "- id: chat",
+        "  messages:",
+        '    - { role: user, content: "echo {{input}}" }',
+        "  inputs_file: data.jsonl",
+        "",
+      ].join("\n")
+    );
+    const r = lockstep(["run", "--dry-run"]);
+    expect(r.status).toBe(0);
+    // greet(1 input) + chat(2 dataset inputs) = 3 cells/target
+    expect(r.stdout).toMatch(/\b3\b/);
+  });
 });

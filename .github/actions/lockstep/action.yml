@@ -1,0 +1,74 @@
+name: "Lockstep prompt-CI"
+description: "Replay prompt test cases across models, diff against a baseline, gate the build, and post a report."
+author: "lockstep"
+branding:
+  icon: "check-square"
+  color: "blue"
+
+inputs:
+  baseline:
+    description: "Path to a committed baseline run JSON to diff against (e.g. .lockstep/baseline-run.json). If omitted, the gate runs against the previous saved run."
+    required: false
+  fail-on:
+    description: "Comma-separated statuses that fail the build (drifted,broken,pricier,slower,cheaper,faster)."
+    required: false
+    default: "drifted,broken"
+  max-cost:
+    description: "Optional USD budget; the run fails if total cost exceeds it."
+    required: false
+  comment:
+    description: "Post the Markdown report as a PR comment (requires pull_request event + GH_TOKEN)."
+    required: false
+    default: "true"
+  node-version:
+    description: "Node.js version."
+    required: false
+    default: "20"
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Install lockstep
+      shell: bash
+      run: npm install -g lockstep
+
+    - name: Run suite
+      shell: bash
+      run: |
+        lockstep run --junit lockstep-results.xml ${{ inputs.max-cost && format('--max-cost {0}', inputs.max-cost) || '' }}
+
+    - name: Compare and gate
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.baseline }}" ]; then
+          NEW=$(ls -t .lockstep/runs/*.json | head -n1)
+          lockstep report "${{ inputs.baseline }}" "$NEW" --format md -o lockstep-report.md
+          lockstep report "${{ inputs.baseline }}" "$NEW" -o lockstep-report.html
+          lockstep compare "${{ inputs.baseline }}" "$NEW" --fail-on ${{ inputs.fail-on }}
+        else
+          lockstep report --format md -o lockstep-report.md
+          lockstep report -o lockstep-report.html
+          lockstep compare --fail-on ${{ inputs.fail-on }}
+        fi
+
+    - name: Upload report
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: lockstep-report
+        path: |
+          lockstep-report.html
+          lockstep-report.md
+          lockstep-results.xml
+
+    - name: Comment on PR
+      if: ${{ always() && inputs.comment == 'true' && github.event_name == 'pull_request' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh pr comment "${{ github.event.pull_request.number }}" --body-file lockstep-report.md || true

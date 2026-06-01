@@ -7,20 +7,30 @@ that touches the outside world is a thin provider adapter behind a single-method
 interface.
 
 ```
-cli/index.ts                 commands: init · run · compare · report · list
+cli/index.ts                 commands: init · run · ask · compare · report · trend · baseline · list
 core/
-  config.ts                  load and zod-validate lockstep.yaml
-  cases.ts                   load and validate case files (.yaml; assertion schema)
+  config.ts                  load and zod-validate lockstep.yaml (incl. redact patterns)
+  cases.ts                   load + validate cases (.yaml); prompt | messages; inputs_file
+  dataset.ts                 parse inputs_file (.jsonl/.json/.csv/.txt)        (pure)
   env.ts                     zero-dependency .env loader (walks cwd upward)
-  runner.ts                  orchestration: matrix run + planRun / describeRun
+  runner.ts                  orchestration: matrix run + buildTurns + plan/describe
+  cache.ts                   hash-keyed response cache (memory + file)
   cost.ts                    config-driven price table and cost calculation   (pure)
+  budget.ts                  the --max-cost decision over a run               (pure)
   diff.ts                    Tier-1 similarity, assertions, per-cell compare   (pure)
+  embed.ts                   Tier-1.5 embedding similarity (opt-in; injectable)
   compare.ts                 pair two runs by case and aggregate               (pure)
+  trend.ts                   many-run trend + sparklines                       (pure)
+  baseline.ts                pin/read/clear a golden run pointer
   gate.ts                    the --fail-on CI gate decision                    (pure)
-  judge.ts                   Tier-2 LLM-as-judge (opt-in)
-  report.ts                  self-contained HTML report                        (pure)
+  judge.ts                   Tier-2 LLM-as-judge: absolute score + pairwise (opt-in)
+  redact.ts                  scrub secrets/PII from a saved run                (pure)
+  watch.ts                   debounce + fs watchers for run --watch
+  report.ts                  self-contained HTML report (sort/filter/dark)     (pure)
   report-md.ts               Markdown report for PR comments                   (pure)
   junit.ts                   JUnit XML export for CI                           (pure)
+  models.ts                  built-in model roster for `ask --all`
+  prompt.ts                  resolve an ad-hoc prompt (arg/file/stdin)         (pure)
   providers/
     types.ts                 the Provider interface
     registry.ts              provider id -> factory (single source of truth)
