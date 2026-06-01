@@ -1,119 +1,106 @@
 <div align="center">
 
-# ◧ Lockstep
+# Lockstep
 
-**Prompt-CI for the model-churn era.** Replay your real prompts across models &
-providers, then see exactly *what changed in the output* and *what it costs now* —
-in one shareable HTML report.
+**Prompt regression testing for the model-churn era.**
 
-`npx lockstep run` · `npx lockstep report`
+Replay your real prompts across models and providers, then see exactly what
+changed in the output — and what it now costs — in one shareable report.
 
-[Live sample report](#) · [Why](#why-i-built-this) · [Quickstart](#quickstart) · [How it works](ARCHITECTURE.md)
+[![CI](https://github.com/arwenizEr/lockstep/actions/workflows/ci.yml/badge.svg)](https://github.com/arwenizEr/lockstep/actions/workflows/ci.yml)
+&nbsp;[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+&nbsp;![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)
+
+`npx lockstep run` · `npx lockstep compare` · `npx lockstep report`
+
+[Why](#why) · [Quickstart](#quickstart) · [Commands](#commands) · [Architecture](ARCHITECTURE.md)
 
 </div>
 
 ---
 
-> Free and open source ([MIT](LICENSE)). No accounts, no cloud, no upsell — it runs
-> entirely on your machine.
+> Free and open source ([MIT](LICENSE)). No accounts, no cloud, no telemetry — it
+> runs entirely on your machine.
 
-## Why I built this
+## Why
 
-Every model release silently re-tunes three things at once: **behavior, cost, and
-parameters.** A new Opus drops, you swap the model ID, and now your extraction
-prompt formats JSON slightly differently, your effort tier means a different
-amount of thinking, your bill changed, and a sampling parameter you were sending
-suddenly returns a 400.
+Every model release quietly re-tunes three things at once: **behaviour, cost, and
+accepted parameters.** You bump the model ID, and suddenly your extraction prompt
+formats JSON a little differently, an effort tier means a different amount of
+reasoning, the bill moves, and a sampling parameter you were sending starts
+returning `400`.
 
-The official advice is "re-test your own prompts after each release." That's a job
-for a tool, not an afternoon of manual spot-checking. And because the value is
-*neutrality* — comparing a vendor to itself across versions, and to its
-competitors — no single vendor will build it for you.
+The standard advice — "re-test your prompts after each release" — is a job for a
+tool, not an afternoon of manual spot-checking. And because the value lies in
+*neutrality* (comparing a vendor against its own past versions and against
+competitors), no single vendor is going to build it for you.
 
 Lockstep is that tool, kept deliberately small: define your prompts as test cases
-once, run them against any set of models, and get a diff of output + cost +
-latency that you can screenshot and share.
+once, run them against any set of models, and get a reviewable diff of output,
+cost, and latency.
 
-## The report (the whole point)
+## How it works
 
-The output is **one self-contained HTML file** — inline CSS/JS, no CDN, opens
-offline, looks good as a screenshot. A real cross-provider run produces a headline
-like:
-
-> **claude-opus-4-8 vs gpt-4o-mini: 1 drifted, ~65× pricier, 1.6× faster.**
-
-(that line is the real headline from [`examples/sample-report.html`](examples/sample-report.html))
-
-…with per-case status badges (`OK` / `DRIFTED` / `BROKEN` / `CHEAPER` / `PRICIER`
-/ `FASTER` / `SLOWER`), a cost-and-latency table per task, and side-by-side
-before/after panels with the text diff highlighted.
-
-<!-- SCREENSHOT: replace this with an image of examples/sample-report.html -->
-<!-- ![Lockstep report](docs/report-screenshot.png) -->
-
-> 📸 **Screenshot placeholder.** Open
-> [`examples/sample-report.html`](examples/sample-report.html) in a browser,
-> screenshot it to `docs/report-screenshot.png`, then uncomment the line above.
-
-<!-- DEMO GIF: a ~15s terminal capture of `lockstep run` then opening the report. -->
-<!-- ![demo](docs/demo.gif) -->
-
-> 🎬 **Demo GIF placeholder.** Record a ~15s clip — run `lockstep run`, then open
-> the report — and drop it at `docs/demo.gif`. Easiest tools: **ScreenToGif**
-> (Windows), **Kap** (macOS), or
-> `terminalizer record demo && terminalizer render demo`.
+1. **`run`** executes every *case × input × target* combination and records the
+   output, token usage, cost, and latency to `.lockstep/runs/<timestamp>.json`.
+2. **`compare`** pairs two runs case-by-case and classifies each result —
+   `OK`, `DRIFTED`, `BROKEN`, `CHEAPER`, `PRICIER`, `FASTER`, or `SLOWER`.
+3. **`report`** renders the comparison as a single self-contained HTML file —
+   inline CSS/JS, no CDN, opens offline — with status badges, a cost-and-latency
+   table, and side-by-side output panels with the text diff highlighted.
 
 ## Quickstart
 
 ```bash
-# 1. set a key (or put it in a .env file — see .env.example)
+# 1. Provide a key (or place it in a .env file — see .env.example)
 export ANTHROPIC_API_KEY=sk-ant-...      # and/or OPENAI_API_KEY
 
-# 2. scaffold, run, report
+# 2. Scaffold, run, and report
 npx lockstep init && npx lockstep run && npx lockstep report
 ```
 
-That writes `lockstep.yaml` + `cases/`, runs every case against every target,
-saves the run to `.lockstep/runs/`, and emits `lockstep-report.html`. Run it again
-after a model release and `lockstep report` diffs the two newest runs.
+`init` writes `lockstep.yaml` and a `cases/` directory; `run` executes every case
+against every target and saves the run; `report` renders `lockstep-report.html`.
+Run it again after a model release and `report` diffs the two most recent runs.
 
-## Try the committed demo
+### Try it with no API key
 
-The [`examples/`](examples/) folder is a real, runnable suite plus a generated
-report, so you can see the output without spending a token:
-
-- [`examples/lockstep.yaml`](examples/lockstep.yaml) — two targets, OpenAI + Anthropic
-- [`examples/cases/suite.yaml`](examples/cases/suite.yaml) — extraction, classification, summary
-- [`examples/sample-run.json`](examples/sample-run.json) — the raw recorded run (real API output)
-- [`examples/sample-report.html`](examples/sample-report.html) — the rendered cross-provider report
-
-Open `sample-report.html` directly in a browser, or regenerate everything:
+A built-in `mock` provider runs the entire pipeline offline and deterministically
+at zero cost — useful for evaluating Lockstep or for running it in CI without
+secrets. The [`examples/offline/`](examples/offline/) suite is configured this way:
 
 ```bash
-cd examples
-npx lockstep run --judge
-npx lockstep report sample-run.json sample-run.json \
-  --a-target gpt-4o-mini --b-target opus-4-8 -o sample-report.html
+cd examples/offline
+npx lockstep run          # run twice to produce two comparable runs
+npx lockstep run
+npx lockstep compare
 ```
-
-> **Host it:** because the report is a single static file, you can drop
-> `examples/sample-report.html` on GitHub Pages or Cloudflare Pages and link it
-> from the "Live sample report" badge at the top.
 
 ## Commands
 
-| Command | What it does |
+| Command | Description |
 |---|---|
-| `lockstep init` | Scaffold `lockstep.yaml` + `cases/example.yaml`. |
-| `lockstep run` | Run every case × input × target; record output + tokens + cost + latency to `.lockstep/runs/<ISO>.json`. Flags: `--target <id>` (repeatable), `--concurrency <n>`, `--judge`, `--judge-model`. |
-| `lockstep compare [A] [B]` | Per-case similarity, cost/latency delta, status. Omit paths to diff the two newest runs. |
-| `lockstep report [A] [B]` | Generate the self-contained HTML report. `-o <file>`, `--a-target`, `--b-target`. |
+| `lockstep init` | Scaffold `lockstep.yaml` and `cases/example.yaml`. |
+| `lockstep run` | Run every case × input × target; record output, tokens, cost, and latency to `.lockstep/runs/`. Flags: `--target <id>` (repeatable), `--concurrency <n>`, `--judge`, `--judge-model <model>`. |
+| `lockstep compare [A] [B]` | Diff two runs per case (similarity, cost/latency delta, status). Omit the paths to diff the two most recent runs. Flags: `--a-target`, `--b-target`, `--fail-on <statuses>`, `--json`. |
+| `lockstep report [A] [B]` | Generate the self-contained HTML report. Flags: `-o <file>`, `--a-target`, `--b-target`, `--fail-on <statuses>`. |
 
-You can also compare two targets **within one run** by passing the same run file
-twice with `--a-target` / `--b-target` (that's how the cross-provider demo above
-is made).
+Two targets within a single run can be compared by passing the same run file
+twice with `--a-target` / `--b-target`.
 
-## Test cases
+### Gating CI
+
+`compare` and `report` accept `--fail-on` and exit with a non-zero status when any
+listed status is present, so a prompt regression fails the build:
+
+```bash
+lockstep compare --fail-on drifted,broken   # exit 1 if anything drifted or broke
+```
+
+Accepted statuses: `drifted`, `broken`, `pricier`, `slower`, `cheaper`, `faster`.
+`compare --json` emits the full comparison to stdout for scripting.
+
+## Defining test cases
 
 ```yaml
 - id: extract-invoice
@@ -121,44 +108,49 @@ is made).
   system: "Output only JSON."
   inputs:
     - "Invoice from Acme Corp — 1240.00 USD, net 30."
-  assert:                       # Tier-1: deterministic, free, offline
+  assert:                       # Tier 1: deterministic, offline, free
     - { type: json_valid }
     - { type: json_has_keys, keys: [vendor, total, currency] }
-  rubric: "Did it extract all three fields without hallucinating?"   # Tier-2: judge, opt-in
+  rubric: "Did it extract all three fields without hallucinating?"   # Tier 2: opt-in judge
 ```
 
-Assertion types: `json_valid`, `json_has_keys`, `contains`, `regex`, `json_path`.
+Assertion types: `json_valid`, `json_has_keys`, `contains`, `not_contains`,
+`icontains`, `equals`, `regex`, `max_length`, `min_length`, `json_path`.
 
-## Drift detection, two tiers
+## Drift detection, in two tiers
 
 - **Tier 1 — default, deterministic, offline, free.** Bag-of-words cosine
-  similarity + length delta + JSON validity + your assertions. Anything below the
-  `similarity_threshold` is flagged `DRIFTED`.
-- **Tier 2 — opt-in (`--judge`), costs tokens.** An LLM scores each output against
-  the case `rubric` (0–1 + a one-line reason). Off by default so a plain run is
-  cheap.
+  similarity, length delta, JSON validity, and your assertions. Anything below the
+  configured `similarity_threshold` is flagged `DRIFTED`.
+- **Tier 2 — opt-in (`--judge`), spends tokens.** A model scores each output
+  against the case `rubric` (0–1 plus a one-line reason). Disabled by default so a
+  plain run stays cheap.
 
 ## Cross-provider by design
 
-Anthropic and OpenAI ship today, behind one `Provider` interface; adding a third
-is one adapter file + one line in
-[`core/providers/registry.ts`](core/providers/registry.ts). Adapters own provider
-quirks — e.g. the Anthropic adapter drops `temperature/top_p/top_k` for models
-that reject them and maps an `effort` tier onto the model-correct extended-thinking
-shape. See [ARCHITECTURE.md](ARCHITECTURE.md).
+Anthropic, OpenAI, and a keyless `mock` provider ship today, all behind a single
+`Provider` interface. Adding another is one adapter file plus one line in
+[`core/providers/registry.ts`](core/providers/registry.ts) — `config.ts` validates
+the `provider` field against the registry, so the schema never needs editing.
+
+Each adapter owns its provider's quirks: the OpenAI adapter drops the sampling
+parameters a model rejects (reasoning models versus chat models) and applies a
+request timeout; the Anthropic adapter maps an `effort` tier onto the
+model-correct extended-thinking shape. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Development
 
 ```bash
 npm install
-npm test           # 87 vitest unit tests (cost, diff, compare, cases, report, judge, env, registry)
+npm test           # 138 offline vitest tests (no API key required)
 npm run dev -- run # run the CLI from source via tsx
-npm run build      # compile to dist/
+npm run build      # type-check and compile to dist/
 ```
 
-Prices in `lockstep.yaml` are config-driven and treated as untrusted defaults —
-they drift every release, so verify them before relying on the cost numbers.
+Prices in `lockstep.yaml` are config-driven and treated as untrusted defaults;
+they change with every release, so verify them before relying on the cost figures.
+Unknown models are flagged rather than silently costed at zero.
 
 ## License
 
-[MIT](LICENSE) — use it, fork it, no strings.
+[MIT](LICENSE).
