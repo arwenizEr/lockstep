@@ -38,18 +38,18 @@ cheapest: gpt-4o-mini ($0.0000) · fastest: gpt-4o-mini (90ms)
 outputs saved — pass --output to print them, or use `lockstep report`.
 ```
 
-Flags: `--output`, `--system <text>`, `-t, --target <id>` (repeatable),
+Flags: `--all`, `--output`, `--system <text>`, `-t, --target <id>` (repeatable),
 `-c, --concurrency <n>`.
 
-To run against the whole field at once, use the ready-made
-[`examples/all-models.yaml`](../examples/all-models.yaml) — every current
-Anthropic and OpenAI model as a target, with prices and the accepted parameters
-already set per model:
+To run against the whole field with **no config at all**, add `--all` — it uses a
+built-in roster of every current Anthropic and OpenAI model, with prices and the
+accepted parameters already set per model:
 
 ```bash
-cd examples && cp all-models.yaml lockstep.yaml
-lockstep ask "Explain a monad in one sentence."   # fans out to all 15 models
+lockstep ask --all "Explain a monad in one sentence."   # fans out to all 15 models
 ```
+
+(Or commit the roster as your own config: `cp examples/all-models.yaml lockstep.yaml`.)
 
 ---
 

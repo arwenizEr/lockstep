@@ -104,7 +104,7 @@ lockstep compare
 
 | Command | Description |
 |---|---|
-| `lockstep ask [prompt]` | Run one prompt (arg, `--file`, or stdin) against **every** target and compare side-by-side — no cases file needed. |
+| `lockstep ask [prompt]` | Run one prompt (arg, `--file`, or stdin) against every target and compare side-by-side. Add `--all` to hit the built-in roster of all current models with **no config at all**. |
 | `lockstep init` | Scaffold `lockstep.yaml` and `cases/example.yaml`. |
 | `lockstep run` | Run every case × input × target; record output, tokens, cost, and latency to `.lockstep/runs/`. Flags: `--target <id>` (repeatable), `--concurrency <n>`, `--judge`, `--judge-model <model>`, `--junit <file>`, `--dry-run`. |
 | `lockstep compare [A] [B]` | Diff two runs per case (similarity, cost/latency delta, status). Omit the paths to diff the two most recent runs. Flags: `--a-target`, `--b-target`, `--fail-on <statuses>`, `--json`. |
@@ -162,9 +162,10 @@ Anthropic, OpenAI, and a keyless `mock` provider ship today, all behind a single
 `Provider` interface. Adding another is one adapter file plus one line in
 [`core/providers/registry.ts`](core/providers/registry.ts) — `config.ts` validates
 the `provider` field against the registry, so the schema never needs editing.
-[`examples/all-models.yaml`](examples/all-models.yaml) lists every current
-Anthropic and OpenAI model as a target, with prices and per-model accepted
-parameters already set — drop it in and `lockstep ask` runs against the field.
+`lockstep ask --all "…"` compares a prompt across every current model with no
+config — it uses a built-in roster with prices and per-model accepted parameters
+already set. [`examples/all-models.yaml`](examples/all-models.yaml) is the same
+roster as a committable config.
 
 Each adapter owns its provider's quirks: the OpenAI adapter drops the sampling
 parameters a model rejects (reasoning models versus chat models) and applies a

@@ -22,6 +22,7 @@ import { renderMarkdown } from "../core/report-md.js";
 import { renderJUnit } from "../core/junit.js";
 import { evaluateGate } from "../core/gate.js";
 import { resolvePrompt } from "../core/prompt.js";
+import { allModelsConfig } from "../core/models.js";
 
 const program = new Command();
 
@@ -170,6 +171,7 @@ program
   .option("-t, --target <id>", "limit to this target id (repeatable)", collect, [] as string[])
   .option("-c, --concurrency <n>", "max concurrent requests", "4")
   .option("--output", "also print each model's full output (default: table only)", false)
+  .option("--all", "run against the full built-in model roster (no lockstep.yaml needed)", false)
   .action(
     async (
       prompt: string | undefined,
@@ -179,6 +181,7 @@ program
         target: string[];
         concurrency: string;
         output: boolean;
+        all: boolean;
       }
     ) => {
       const fileText = opts.file
@@ -195,7 +198,11 @@ program
       }
       const promptText = resolvePrompt({ arg: prompt, file: fileText, stdin: stdinText });
 
-      const loaded = loadConfig();
+      // --all uses the built-in roster (every current model), so no lockstep.yaml
+      // is required; otherwise read targets from the config in the cwd.
+      const loaded = opts.all
+        ? { config: allModelsConfig(), baseDir: process.cwd(), casesDir: resolve(process.cwd(), "cases") }
+        : loadConfig();
       const concurrency = Math.max(1, parseInt(opts.concurrency, 10) || 4);
       const case_ = {
         id: "prompt",
