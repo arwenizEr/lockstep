@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
+import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join, isAbsolute, resolve, basename } from "node:path";
 import { Command } from "commander";
 import { loadDotenv } from "../core/env.js";
@@ -21,6 +21,7 @@ import { renderReport } from "../core/report.js";
 import { renderMarkdown } from "../core/report-md.js";
 import { renderJUnit } from "../core/junit.js";
 import { evaluateGate } from "../core/gate.js";
+import { resolvePrompt } from "../core/prompt.js";
 
 const program = new Command();
 
@@ -155,6 +156,60 @@ program
         console.log(`Wrote JUnit XML -> ${junitPath}\n`);
       }
       printSummary(runFile);
+    }
+  );
+
+// ---------------------------------------------------------------------------
+// ask — one ad-hoc prompt across every target, no cases file
+// ---------------------------------------------------------------------------
+program
+  .command("ask [prompt]")
+  .description("Run one prompt against every target and compare — no cases file needed")
+  .option("--file <path>", "read the prompt from a file (for long prompts)")
+  .option("--system <text>", "optional system prompt")
+  .option("-t, --target <id>", "limit to this target id (repeatable)", collect, [] as string[])
+  .option("-c, --concurrency <n>", "max concurrent requests", "4")
+  .action(
+    async (
+      prompt: string | undefined,
+      opts: { file?: string; system?: string; target: string[]; concurrency: string }
+    ) => {
+      const fileText = opts.file
+        ? readFileSync(isAbsolute(opts.file) ? opts.file : resolve(process.cwd(), opts.file), "utf8")
+        : undefined;
+      // Read piped stdin only when no arg/file and input is not an interactive TTY.
+      let stdinText: string | undefined;
+      if (!prompt && !fileText && !process.stdin.isTTY) {
+        try {
+          stdinText = readFileSync(0, "utf8");
+        } catch {
+          stdinText = undefined;
+        }
+      }
+      const promptText = resolvePrompt({ arg: prompt, file: fileText, stdin: stdinText });
+
+      const loaded = loadConfig();
+      const concurrency = Math.max(1, parseInt(opts.concurrency, 10) || 4);
+      const case_ = {
+        id: "prompt",
+        prompt: promptText,
+        inputs: [""],
+        system: opts.system,
+        assert: [],
+      };
+
+      const nTargets =
+        opts.target.length > 0
+          ? loaded.config.targets.filter((t) => opts.target.includes(t.id)).length
+          : loaded.config.targets.length;
+      console.log(`Asking ${nTargets} target(s)...\n`);
+
+      const runFile = await run(loaded, [case_], {
+        targetIds: opts.target,
+        concurrency,
+      });
+      writeRunFile(loaded.baseDir, runFile);
+      printAsk(runFile);
     }
   );
 
@@ -366,6 +421,33 @@ function fmtUsd(n: number): string {
 function fmtSigned(n: number, digits: number, prefix = "", suffix = ""): string {
   const sign = n > 0 ? "+" : n < 0 ? "-" : "";
   return `${sign}${prefix}${Math.abs(n).toFixed(digits)}${suffix}`;
+}
+
+function printAsk(runFile: RunFile): void {
+  const rows = runFile.results.map((r) => [
+    r.targetId,
+    r.model,
+    `${r.tokensIn}/${r.tokensOut}`,
+    (r.priced ? "$" : "$~") + r.cost.toFixed(5),
+    `${r.latencyMs}ms`,
+    r.status,
+  ]);
+  printTable(["target", "model", "tok in/out", "cost", "latency", "status"], rows);
+
+  for (const r of runFile.results) {
+    console.log(`\n-- ${r.targetId} (${r.model}) ` + "-".repeat(8));
+    console.log(r.status === "OK" ? r.output.trim() : `BROKEN: ${r.error ?? ""}`);
+  }
+
+  const ok = runFile.results.filter((r) => r.status === "OK");
+  if (ok.length > 1) {
+    const cheapest = ok.reduce((a, b) => (b.cost < a.cost ? b : a));
+    const fastest = ok.reduce((a, b) => (b.latencyMs < a.latencyMs ? b : a));
+    console.log(
+      `\ncheapest: ${cheapest.targetId} (${fmtUsd(cheapest.cost)}) · ` +
+        `fastest: ${fastest.targetId} (${fastest.latencyMs}ms)`
+    );
+  }
 }
 
 function printSummary(runFile: RunFile): void {

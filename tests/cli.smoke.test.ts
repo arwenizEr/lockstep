@@ -83,6 +83,20 @@ describe("CLI (built binary, mock provider)", () => {
     expect(r.stdout).toContain(".json");
   });
 
+  it("ask runs one prompt against every target", () => {
+    const r = lockstep(["ask", "Name one primary color."]);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("Asking 2 target(s)");
+    expect(r.stdout).toContain("m1");
+    expect(r.stdout).toContain("m2");
+    expect(r.stdout).toMatch(/cheapest:/);
+  });
+
+  it("ask with no prompt and no stdin exits non-zero", () => {
+    const r = spawnSync("node", [cli, "ask"], { cwd: dir, encoding: "utf8", input: "" });
+    expect(r.status).not.toBe(0);
+  });
+
   it("--version prints the version", () => {
     const r = lockstep(["--version"]);
     expect(r.status).toBe(0);
