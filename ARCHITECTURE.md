@@ -6,22 +6,26 @@ without a network, and the only thing that touches the outside world is a thin
 provider adapter behind a one-method interface.
 
 ```
-cli/index.ts                 commands: init · run · compare · report
+cli/index.ts                 commands: init · run · compare · report · list
 core/
   config.ts                  load + zod-validate lockstep.yaml
-  cases.ts                   load + validate case files (.yaml)
+  cases.ts                   load + validate case files (.yaml; assertion schema)
   env.ts                     zero-dep .env loader (walks cwd upward)
-  runner.ts                  orchestration: case × input × target matrix
+  runner.ts                  orchestration: case × input × target matrix; planRun/describeRun
   cost.ts                    config-driven price table + cost calc       (pure)
   diff.ts                    Tier-1 similarity + assertions + per-cell compare (pure)
   compare.ts                 pair two runs by case, aggregate             (pure)
+  gate.ts                    --fail-on CI gate decision                   (pure)
   judge.ts                   Tier-2 LLM-as-judge (opt-in)
   report.ts                  self-contained HTML report                  (pure)
+  report-md.ts               Markdown report for PR comments             (pure)
+  junit.ts                   JUnit XML export for CI                      (pure)
   providers/
     types.ts                 the Provider interface
     registry.ts              provider id -> factory (single source of truth)
-    anthropic.ts             adapter
-    openai.ts                adapter
+    anthropic.ts             adapter (injectable client)
+    openai.ts                adapter (fetch, injectable; timeout/abort)
+    mock.ts                  keyless deterministic adapter (offline/tests/CI)
 ```
 
 ## Data flow
@@ -88,7 +92,10 @@ it's straightforward to snapshot-test for self-containment and HTML escaping.
 
 ## Testing
 
-The pure modules (`cost`, `diff`, `compare`, `report`, `judge` parser, `env`,
-`registry`) are unit-tested with vitest and need no API key. Provider adapters
-are the only network-touching code and are exercised by real end-to-end runs (see
-the `examples/` demo, generated against live Anthropic + OpenAI).
+The pure modules (`cost`, `diff`, `compare`, `gate`, `report`, `report-md`,
+`junit`, `judge` parser, `env`, `registry`, `config`, `cases`) are unit-tested
+with vitest and need no API key. The runner and both real provider adapters are
+covered offline too — the adapters take an injectable client/`fetch`, and the
+keyless `mock` provider drives the runner end-to-end without a network. The
+`examples/offline/` suite runs the whole pipeline with zero cost; `examples/`
+(live Anthropic + OpenAI) is the real cross-provider demo.
