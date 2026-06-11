@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **OpenAI cached-token discount** — `prompt_tokens_details.cached_tokens` (Chat
+  Completions) and `input_tokens_details.cached_tokens` (Responses) are split
+  out of the prompt total and billed at OpenAI's 0.5x input rate. The cost model
+  now takes a provider-specific cache-read rate (Anthropic stays at the 0.1x
+  default), so cached runs report true cost on both providers.
+
 ## [0.2.0] — 2026-06-11
 
 ### Added

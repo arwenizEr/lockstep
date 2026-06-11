@@ -17,6 +17,7 @@ export interface CacheEntry {
   truncated?: boolean;
   tokensCacheRead?: number;
   tokensCacheWrite?: number;
+  cacheReadRate?: number;
 }
 
 export interface ProviderCache {

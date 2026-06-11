@@ -32,9 +32,11 @@ export interface CaseResult {
   stopReason?: string;
   /** True when output was cut by the token ceiling — compare with care, the text is incomplete. */
   truncated?: boolean;
-  /** Anthropic prompt-cache token counts (billed at reduced/premium input rates). */
+  /** Prompt-cache token counts (billed at reduced/premium input rates). */
   tokensCacheRead?: number;
   tokensCacheWrite?: number;
+  /** Cache-read price as a fraction of the input price (0.1 Anthropic, 0.5 OpenAI). */
+  cacheReadRate?: number;
   /** True when this result was served from the response cache, not a live call. */
   cached?: boolean;
   rubric?: string;
@@ -248,6 +250,7 @@ export async function run(
             truncated: r.truncated,
             tokensCacheRead: r.tokensCacheRead,
             tokensCacheWrite: r.tokensCacheWrite,
+            cacheReadRate: r.cacheReadRate,
           });
       }
       const { cost, priced } = costForModel(
@@ -255,7 +258,7 @@ export async function run(
         job.target.model,
         r.tokensIn,
         r.tokensOut,
-        { read: r.tokensCacheRead, write: r.tokensCacheWrite }
+        { read: r.tokensCacheRead, write: r.tokensCacheWrite, readRate: r.cacheReadRate }
       );
       const assertions = runAssertions(job.case_.assert, r.text);
       const assertionsPass = assertions.every((a) => a.pass);
@@ -272,6 +275,7 @@ export async function run(
         truncated: r.truncated,
         tokensCacheRead: r.tokensCacheRead,
         tokensCacheWrite: r.tokensCacheWrite,
+        cacheReadRate: r.cacheReadRate,
         cached,
         assertions,
         assertionsPass,

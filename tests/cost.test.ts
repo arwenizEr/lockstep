@@ -37,6 +37,13 @@ describe("computeCost", () => {
       computeCost({ in: 5, out: 25 }, 1_000_000, 1_000_000, { read: 1_000_000 })
     ).toBeCloseTo(30.5, 9);
   });
+
+  it("honors a provider-specific readRate (OpenAI 0.5x)", () => {
+    // 400k uncached @ $2.5 = $1.0; 600k cached @ $2.5 * 0.5 = $0.75
+    expect(
+      computeCost({ in: 2.5, out: 10 }, 400_000, 0, { read: 600_000, readRate: 0.5 })
+    ).toBeCloseTo(1.75, 9);
+  });
 });
 
 describe("priceFor", () => {

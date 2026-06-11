@@ -21,6 +21,22 @@ export function isReasoningModel(model: string): boolean {
 
 let warnedTopK = false;
 
+/** OpenAI bills cached prompt tokens at 50% of the input price. */
+const OPENAI_CACHE_READ_RATE = 0.5;
+
+/**
+ * OpenAI reports cached tokens INSIDE the prompt total (unlike Anthropic, where
+ * cache categories are separate). Split them so RunResult.tokensIn holds the
+ * uncached remainder and tokensCacheRead the discounted portion — never both.
+ */
+function splitCachedTokens(
+  promptTotal: number,
+  cached: number | undefined
+): { uncached: number; cached?: number } {
+  if (!cached || cached <= 0) return { uncached: promptTotal };
+  return { uncached: Math.max(0, promptTotal - cached), cached };
+}
+
 /**
  * OpenAI adapter. Implemented against the Chat Completions API via fetch so we
  * don't pull in the SDK just for one call path. Same Provider interface as
@@ -83,18 +99,28 @@ export class OpenAIProvider implements Provider {
 
     const json = (await this.post("/chat/completions", body)) as {
       choices?: { message?: { content?: string }; finish_reason?: string }[];
-      usage?: { prompt_tokens?: number; completion_tokens?: number };
+      usage?: {
+        prompt_tokens?: number;
+        completion_tokens?: number;
+        prompt_tokens_details?: { cached_tokens?: number };
+      };
       _latencyMs: number;
     };
 
     const choice = json.choices?.[0];
+    const cache = splitCachedTokens(
+      json.usage?.prompt_tokens ?? 0,
+      json.usage?.prompt_tokens_details?.cached_tokens
+    );
     return {
       text: choice?.message?.content ?? "",
-      tokensIn: json.usage?.prompt_tokens ?? 0,
+      tokensIn: cache.uncached,
       tokensOut: json.usage?.completion_tokens ?? 0,
       latencyMs: json._latencyMs,
       stopReason: choice?.finish_reason ?? undefined,
       truncated: choice?.finish_reason === "length" || undefined,
+      tokensCacheRead: cache.cached,
+      cacheReadRate: cache.cached !== undefined ? OPENAI_CACHE_READ_RATE : undefined,
       raw: json,
     };
   }
@@ -123,7 +149,11 @@ export class OpenAIProvider implements Provider {
       output?: { type: string; content?: { type: string; text?: string }[] }[];
       status?: string;
       incomplete_details?: { reason?: string };
-      usage?: { input_tokens?: number; output_tokens?: number };
+      usage?: {
+        input_tokens?: number;
+        output_tokens?: number;
+        input_tokens_details?: { cached_tokens?: number };
+      };
       _latencyMs: number;
     };
 
@@ -136,13 +166,19 @@ export class OpenAIProvider implements Provider {
       .join("");
 
     const incompleteReason = json.incomplete_details?.reason;
+    const cache = splitCachedTokens(
+      json.usage?.input_tokens ?? 0,
+      json.usage?.input_tokens_details?.cached_tokens
+    );
     return {
       text,
-      tokensIn: json.usage?.input_tokens ?? 0,
+      tokensIn: cache.uncached,
       tokensOut: json.usage?.output_tokens ?? 0,
       latencyMs: json._latencyMs,
       stopReason: json.status === "incomplete" ? (incompleteReason ?? "incomplete") : json.status,
       truncated: incompleteReason === "max_output_tokens" || undefined,
+      tokensCacheRead: cache.cached,
+      cacheReadRate: cache.cached !== undefined ? OPENAI_CACHE_READ_RATE : undefined,
       raw: json,
     };
   }

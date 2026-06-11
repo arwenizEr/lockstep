@@ -27,9 +27,10 @@ export function priceFor(
 }
 
 /**
- * Anthropic prompt-cache multipliers on the input price: reads bill at ~0.1x,
- * writes (5-minute TTL) at ~1.25x. Cache tokens are separate usage categories —
- * the API's input_tokens already excludes them.
+ * Default prompt-cache multipliers on the input price (Anthropic): reads bill
+ * at ~0.1x, writes (5-minute TTL) at ~1.25x. OpenAI bills cached prompt tokens
+ * at 0.5x — adapters override via readRate. In both cases `tokensIn` must hold
+ * the uncached remainder only (the OpenAI adapter subtracts cached_tokens).
  */
 const CACHE_READ_MULT = 0.1;
 const CACHE_WRITE_MULT = 1.25;
@@ -37,11 +38,13 @@ const CACHE_WRITE_MULT = 1.25;
 export interface CacheTokens {
   read?: number;
   write?: number;
+  /** Cache-read price as a fraction of the input price. Defaults to 0.1 (Anthropic). */
+  readRate?: number;
 }
 
 /**
  * Cost in USD = (tokensIn/1e6)*priceIn + (tokensOut/1e6)*priceOut
- *             + cache reads at 0.1x in + cache writes at 1.25x in.
+ *             + cache reads at readRate x in + cache writes at 1.25x in.
  */
 export function computeCost(
   price: Price | undefined,
@@ -53,7 +56,7 @@ export function computeCost(
   return (
     (tokensIn / 1e6) * price.in +
     (tokensOut / 1e6) * price.out +
-    ((cache.read ?? 0) / 1e6) * price.in * CACHE_READ_MULT +
+    ((cache.read ?? 0) / 1e6) * price.in * (cache.readRate ?? CACHE_READ_MULT) +
     ((cache.write ?? 0) / 1e6) * price.in * CACHE_WRITE_MULT
   );
 }

@@ -33,10 +33,16 @@ export interface RunResult {
   stopReason?: string;
   /** True when output was cut off by the token ceiling (stop_reason max_tokens / finish_reason length). */
   truncated?: boolean;
-  /** Anthropic prompt-cache reads (billed ~0.1x input price). Not included in tokensIn. */
+  /**
+   * Prompt-cache reads, billed at cacheReadRate x input price. NOT included in
+   * tokensIn — adapters whose API reports cache tokens inside the prompt total
+   * (OpenAI) must subtract them so the two fields never double-count.
+   */
   tokensCacheRead?: number;
   /** Anthropic prompt-cache writes (billed ~1.25x input price). Not included in tokensIn. */
   tokensCacheWrite?: number;
+  /** Cache-read price as a fraction of the input price. Anthropic ~0.1, OpenAI 0.5. Defaults to 0.1. */
+  cacheReadRate?: number;
   raw: unknown;
 }
 

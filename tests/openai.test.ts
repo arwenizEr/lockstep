@@ -184,6 +184,61 @@ describe("OpenAIProvider", () => {
     expect(r.stopReason).toBe("max_output_tokens");
   });
 
+  it("splits cached_tokens out of prompt_tokens at the 0.5 read rate (chat)", async () => {
+    const p = new OpenAIProvider("sk-test", {
+      fetchImpl: async () =>
+        okResp({
+          choices: [{ message: { content: "x" } }],
+          usage: {
+            prompt_tokens: 1000,
+            completion_tokens: 10,
+            prompt_tokens_details: { cached_tokens: 600 },
+          },
+        }),
+    });
+    const r = await p.run(req);
+    expect(r.tokensIn).toBe(400); // uncached remainder only — no double-count
+    expect(r.tokensCacheRead).toBe(600);
+    expect(r.cacheReadRate).toBe(0.5);
+  });
+
+  it("splits input_tokens_details.cached_tokens on the Responses path", async () => {
+    const p = new OpenAIProvider("sk-test", {
+      fetchImpl: async () =>
+        okResp({
+          status: "completed",
+          output: [{ type: "message", content: [{ type: "output_text", text: "x" }] }],
+          usage: {
+            input_tokens: 500,
+            output_tokens: 5,
+            input_tokens_details: { cached_tokens: 200 },
+          },
+        }),
+    });
+    const r = await p.run({ ...req, model: "gpt-5.5-pro", mode: "responses" });
+    expect(r.tokensIn).toBe(300);
+    expect(r.tokensCacheRead).toBe(200);
+    expect(r.cacheReadRate).toBe(0.5);
+  });
+
+  it("leaves tokens untouched when cached_tokens is absent or zero", async () => {
+    const p = new OpenAIProvider("sk-test", {
+      fetchImpl: async () =>
+        okResp({
+          choices: [{ message: { content: "x" } }],
+          usage: {
+            prompt_tokens: 1000,
+            completion_tokens: 10,
+            prompt_tokens_details: { cached_tokens: 0 },
+          },
+        }),
+    });
+    const r = await p.run(req);
+    expect(r.tokensIn).toBe(1000);
+    expect(r.tokensCacheRead).toBeUndefined();
+    expect(r.cacheReadRate).toBeUndefined();
+  });
+
   it("honors LOCKSTEP_HTTP_TIMEOUT_MS in the timeout message", async () => {
     const prev = process.env.LOCKSTEP_HTTP_TIMEOUT_MS;
     process.env.LOCKSTEP_HTTP_TIMEOUT_MS = "1234";
