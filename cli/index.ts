@@ -121,12 +121,23 @@ program
         const plan = planRun(loaded.config, cases, opts.target);
         console.log(`Dry run — ${plan.totalCells} cell(s), no providers called:\n`);
         printTable(
-          ["target", "model", "cells", "priced"],
-          plan.perTarget.map((t) => [t.id, t.model, String(t.cells), t.priced ? "yes" : "NO"])
+          ["target", "model", "cells", "priced", "~in-tokens", "~in-cost"],
+          plan.perTarget.map((t) => [
+            t.id,
+            t.model,
+            String(t.cells),
+            t.priced ? "yes" : "NO",
+            String(t.estTokensIn),
+            `$${t.estCostIn.toFixed(4)}`,
+          ])
+        );
+        console.log(
+          `\n  ~in-cost is a rough input-side lower bound (chars/4; Fable ~1.3x). ` +
+            `Output cost depends on the responses. Total: ~$${plan.estCostIn.toFixed(4)}+`
         );
         if (plan.perTarget.some((t) => !t.priced)) {
           console.log(
-            "\n  NO = no price entry; cost will show as ~ until you add it under `pricing:`."
+            "  NO = no price entry; cost will show as ~ until you add it under `pricing:`."
           );
         }
         return;

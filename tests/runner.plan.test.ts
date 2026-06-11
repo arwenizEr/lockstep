@@ -64,4 +64,26 @@ describe("planRun", () => {
     expect(plan.perTarget).toHaveLength(1);
     expect(plan.totalCells).toBe(3);
   });
+
+  it("estimates input tokens (chars/4) and input-side cost per target", () => {
+    const plan = planRun(planCfg(), cases);
+    const t1 = plan.perTarget.find((t) => t.id === "t1")!;
+    // 3 prompts of "p" (1 char each) = 3 chars -> ceil(3/4) = 1 token @ $1/M
+    expect(t1.estTokensIn).toBe(1);
+    expect(t1.estCostIn).toBeCloseTo(1 / 1e6, 12);
+    // Unpriced target estimates 0 cost but still reports tokens.
+    const t2 = plan.perTarget.find((t) => t.id === "t2")!;
+    expect(t2.estTokensIn).toBe(1);
+    expect(t2.estCostIn).toBe(0);
+    expect(plan.estCostIn).toBeCloseTo(t1.estCostIn, 12);
+  });
+
+  it("applies the ~1.3x tokenizer multiplier for fable-5 targets", () => {
+    const cfg = planCfg();
+    cfg.targets = [{ id: "f", provider: "mock", model: "claude-fable-5" }];
+    const bigCases: Case[] = [{ id: "a", prompt: "x".repeat(400), inputs: ["i"], assert: [] }];
+    const plan = planRun(cfg, bigCases);
+    // 400 chars -> 100 base tokens -> 130 with the Fable multiplier
+    expect(plan.perTarget[0].estTokensIn).toBe(130);
+  });
 });

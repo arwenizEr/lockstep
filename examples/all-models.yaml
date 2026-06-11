@@ -26,6 +26,9 @@
 
 targets:
   # ── Anthropic — adaptive thinking (use effort, not sampling) ──
+  # fable-5: thinking always on (cannot be disabled), no sampling params ever,
+  # 200-with-refusal possible, new tokenizer (~30% more tokens than Opus-tier).
+  - { id: fable-5,    provider: anthropic, model: claude-fable-5,    effort: high }
   - { id: opus-4-8,   provider: anthropic, model: claude-opus-4-8,   effort: high }
   - { id: opus-4-7,   provider: anthropic, model: claude-opus-4-7,   effort: high }
   - { id: opus-4-6,   provider: anthropic, model: claude-opus-4-6,   effort: high }
@@ -38,8 +41,9 @@ targets:
 
   # ── OpenAI — reasoning models (use reasoning_effort, not temperature) ──
   - { id: gpt-5.5,      provider: openai, model: gpt-5.5,      effort: high }
-  # gpt-5.5-pro is Responses-API only — not available on Chat Completions, which
-  # is what the OpenAI adapter uses. Omitted (it 404s here). Verified 2026-06-01.
+  # gpt-5.5-pro is Responses-API only. The adapter supports it via `mode: responses`
+  # — uncomment below and add a verified price entry to enable it:
+  # - { id: gpt-5.5-pro, provider: openai, model: gpt-5.5-pro, effort: high, mode: responses }
   - { id: gpt-5.4,      provider: openai, model: gpt-5.4,      effort: high }
   - { id: gpt-5.4-mini, provider: openai, model: gpt-5.4-mini, effort: high }
   - { id: o3,           provider: openai, model: o3,           effort: high }
@@ -55,6 +59,7 @@ cases_dir: ./cases
 # $/million tokens — { in, out }. Verified against vendor docs 2026-06-01.
 pricing:
   # Anthropic
+  claude-fable-5:    { in: 10,   out: 50 }
   claude-opus-4-8:   { in: 5,    out: 25 }
   claude-opus-4-7:   { in: 5,    out: 25 }
   claude-opus-4-6:   { in: 5,    out: 25 }

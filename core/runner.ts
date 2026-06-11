@@ -28,6 +28,13 @@ export interface CaseResult {
   cost: number;
   priced: boolean;
   latencyMs: number;
+  /** Provider's stop/finish reason (e.g. end_turn, max_tokens, length). */
+  stopReason?: string;
+  /** True when output was cut by the token ceiling — compare with care, the text is incomplete. */
+  truncated?: boolean;
+  /** Anthropic prompt-cache token counts (billed at reduced/premium input rates). */
+  tokensCacheRead?: number;
+  tokensCacheWrite?: number;
   /** True when this result was served from the response cache, not a live call. */
   cached?: boolean;
   rubric?: string;
@@ -214,6 +221,7 @@ export async function run(
       messages,
       effort: job.target.effort,
       mode: job.target.mode,
+      maxTokens: job.target.max_tokens,
       temperature: job.target.temperature,
       topP: job.target.top_p,
       topK: job.target.top_k,
@@ -236,13 +244,18 @@ export async function run(
             tokensIn: r.tokensIn,
             tokensOut: r.tokensOut,
             latencyMs: r.latencyMs,
+            stopReason: r.stopReason,
+            truncated: r.truncated,
+            tokensCacheRead: r.tokensCacheRead,
+            tokensCacheWrite: r.tokensCacheWrite,
           });
       }
       const { cost, priced } = costForModel(
         config,
         job.target.model,
         r.tokensIn,
-        r.tokensOut
+        r.tokensOut,
+        { read: r.tokensCacheRead, write: r.tokensCacheWrite }
       );
       const assertions = runAssertions(job.case_.assert, r.text);
       const assertionsPass = assertions.every((a) => a.pass);
@@ -255,6 +268,10 @@ export async function run(
         cost,
         priced,
         latencyMs: r.latencyMs,
+        stopReason: r.stopReason,
+        truncated: r.truncated,
+        tokensCacheRead: r.tokensCacheRead,
+        tokensCacheWrite: r.tokensCacheWrite,
         cached,
         assertions,
         assertionsPass,
@@ -352,13 +369,32 @@ export function runFailures(run: RunFile): RunFailures {
 }
 
 export interface RunPlan {
-  perTarget: { id: string; model: string; cells: number; priced: boolean }[];
+  perTarget: {
+    id: string;
+    model: string;
+    cells: number;
+    priced: boolean;
+    /** Rough input-token estimate (chars/4; ~1.3x for the Fable/Mythos tokenizer). */
+    estTokensIn: number;
+    /** Estimated input-side cost in USD (output cost is unknowable up front). */
+    estCostIn: number;
+  }[];
   totalCells: number;
+  /** Sum of per-target input-cost estimates. Rough lower bound for the run. */
+  estCostIn: number;
+}
+
+/** Rough offline token estimate: ~4 chars/token; Fable/Mythos tokenize ~30% heavier. */
+function estimateTokens(chars: number, model: string): number {
+  const base = Math.ceil(chars / 4);
+  const heavy = model.startsWith("claude-fable-5") || model.startsWith("claude-mythos-5");
+  return heavy ? Math.ceil(base * 1.3) : base;
 }
 
 /**
  * Compute what a run *would* do without calling any provider — the case×input×
- * target matrix and which target models have no price entry. Powers --dry-run.
+ * target matrix, which target models have no price entry, and a rough input-side
+ * cost estimate (chars/4 heuristic, no API calls). Powers --dry-run.
  */
 export function planRun(
   config: Config,
@@ -371,11 +407,30 @@ export function planRun(
     targets = targets.filter((t) => set.has(t.id));
   }
   const inputsTotal = cases.reduce((n, c) => n + c.inputs.length, 0);
-  const perTarget = targets.map((t) => ({
-    id: t.id,
-    model: t.model,
-    cells: inputsTotal,
-    priced: config.pricing[t.model] !== undefined,
-  }));
-  return { perTarget, totalCells: inputsTotal * targets.length };
+  // Total characters a target would receive: every case×input prompt + system.
+  let totalChars = 0;
+  for (const case_ of cases) {
+    for (const input of case_.inputs) {
+      const { messages } = buildTurns(case_, input);
+      totalChars += messages.reduce((n, m) => n + m.content.length, 0);
+      totalChars += case_.system?.length ?? 0;
+    }
+  }
+  const perTarget = targets.map((t) => {
+    const estTokensIn = estimateTokens(totalChars, t.model);
+    const { cost } = costForModel(config, t.model, estTokensIn, 0);
+    return {
+      id: t.id,
+      model: t.model,
+      cells: inputsTotal,
+      priced: config.pricing[t.model] !== undefined,
+      estTokensIn,
+      estCostIn: cost,
+    };
+  });
+  return {
+    perTarget,
+    totalCells: inputsTotal * targets.length,
+    estCostIn: perTarget.reduce((n, t) => n + t.estCostIn, 0),
+  };
 }

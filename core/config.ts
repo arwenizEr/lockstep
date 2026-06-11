@@ -26,6 +26,8 @@ export const TargetSchema = z.object({
   model: z.string().min(1),
   effort: z.string().optional(),
   mode: z.string().optional(),
+  /** Output-token ceiling for this target. Defaults are per-adapter when omitted. */
+  max_tokens: z.number().int().positive().optional(),
   /** Sampling params are optional + opt-in. Adapters drop them for models that 400. */
   temperature: z.number().optional(),
   top_p: z.number().optional(),

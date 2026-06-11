@@ -11,7 +11,9 @@ import type { Config, Target } from "./config.js";
  * intentionally excluded — it is Responses-API only and 404s on Chat Completions.
  */
 export const ALL_MODELS: Target[] = [
-  // Anthropic — adaptive thinking
+  // Anthropic — adaptive thinking (fable-5: thinking always on; new tokenizer,
+  // ~30% more tokens than Opus-tier for the same content — costs don't transfer)
+  { id: "fable-5", provider: "anthropic", model: "claude-fable-5", effort: "high" },
   { id: "opus-4-8", provider: "anthropic", model: "claude-opus-4-8", effort: "high" },
   { id: "opus-4-7", provider: "anthropic", model: "claude-opus-4-7", effort: "high" },
   { id: "opus-4-6", provider: "anthropic", model: "claude-opus-4-6", effort: "high" },
@@ -34,6 +36,7 @@ export const ALL_MODELS: Target[] = [
 
 /** $/M tokens for the built-in roster. Untrusted defaults — verify before relying. */
 export const ALL_PRICING: Config["pricing"] = {
+  "claude-fable-5": { in: 10, out: 50 },
   "claude-opus-4-8": { in: 5, out: 25 },
   "claude-opus-4-7": { in: 5, out: 25 },
   "claude-opus-4-6": { in: 5, out: 25 },

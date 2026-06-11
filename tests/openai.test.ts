@@ -110,6 +110,80 @@ describe("OpenAIProvider", () => {
     warn.mockRestore();
   });
 
+  it("sends max_completion_tokens (reasoning) vs max_tokens (chat) for maxTokens", async () => {
+    let sent: any;
+    const fetchImpl = async (_url: any, init: any) => {
+      sent = JSON.parse(init.body);
+      return okResp({ choices: [{ message: { content: "x" } }] });
+    };
+    const p = new OpenAIProvider("sk-test", { fetchImpl });
+    await p.run({ ...req, model: "o3-mini", maxTokens: 5000 });
+    expect(sent.max_completion_tokens).toBe(5000);
+    expect(sent.max_tokens).toBeUndefined();
+    await p.run({ ...req, model: "gpt-4o-mini", maxTokens: 5000 });
+    expect(sent.max_tokens).toBe(5000);
+    expect(sent.max_completion_tokens).toBeUndefined();
+  });
+
+  it("marks finish_reason length as truncated", async () => {
+    const p = new OpenAIProvider("sk-test", {
+      fetchImpl: async () =>
+        okResp({ choices: [{ message: { content: "cut" }, finish_reason: "length" }] }),
+    });
+    const r = await p.run(req);
+    expect(r.truncated).toBe(true);
+    expect(r.stopReason).toBe("length");
+  });
+
+  it("routes mode:responses through the Responses API and parses output_text", async () => {
+    let url = "";
+    let sent: any;
+    const p = new OpenAIProvider("sk-test", {
+      fetchImpl: async (u: any, init: any) => {
+        url = String(u);
+        sent = JSON.parse(init.body);
+        return okResp({
+          status: "completed",
+          output: [
+            { type: "reasoning" },
+            { type: "message", content: [{ type: "output_text", text: "from responses" }] },
+          ],
+          usage: { input_tokens: 9, output_tokens: 5 },
+        });
+      },
+    });
+    const r = await p.run({
+      ...req,
+      model: "gpt-5.5-pro",
+      mode: "responses",
+      system: "be terse",
+      effort: "high",
+      maxTokens: 8000,
+    });
+    expect(url).toContain("/responses");
+    expect(sent.input).toEqual([{ role: "user", content: "hi" }]);
+    expect(sent.instructions).toBe("be terse");
+    expect(sent.reasoning).toEqual({ effort: "high" });
+    expect(sent.max_output_tokens).toBe(8000);
+    expect(r.text).toBe("from responses");
+    expect(r.tokensIn).toBe(9);
+    expect(r.tokensOut).toBe(5);
+  });
+
+  it("marks an incomplete Responses result (max_output_tokens) as truncated", async () => {
+    const p = new OpenAIProvider("sk-test", {
+      fetchImpl: async () =>
+        okResp({
+          status: "incomplete",
+          incomplete_details: { reason: "max_output_tokens" },
+          output: [{ type: "message", content: [{ type: "output_text", text: "partial" }] }],
+        }),
+    });
+    const r = await p.run({ ...req, model: "gpt-5.5-pro", mode: "responses" });
+    expect(r.truncated).toBe(true);
+    expect(r.stopReason).toBe("max_output_tokens");
+  });
+
   it("honors LOCKSTEP_HTTP_TIMEOUT_MS in the timeout message", async () => {
     const prev = process.env.LOCKSTEP_HTTP_TIMEOUT_MS;
     process.env.LOCKSTEP_HTTP_TIMEOUT_MS = "1234";

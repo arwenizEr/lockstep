@@ -23,6 +23,20 @@ describe("computeCost", () => {
   it("handles free models (zero price)", () => {
     expect(computeCost({ in: 0, out: 0 }, 9999, 9999)).toBe(0);
   });
+
+  it("bills cache reads at 0.1x and writes at 1.25x of the input price", () => {
+    // 1M cache-read @ $5 * 0.1 = $0.5; 1M cache-write @ $5 * 1.25 = $6.25
+    expect(
+      computeCost({ in: 5, out: 25 }, 0, 0, { read: 1_000_000, write: 1_000_000 })
+    ).toBeCloseTo(6.75, 9);
+  });
+
+  it("adds cache cost on top of regular in/out cost", () => {
+    // 1M in @5 + 1M out @25 + 1M read @0.5 = 30.5
+    expect(
+      computeCost({ in: 5, out: 25 }, 1_000_000, 1_000_000, { read: 1_000_000 })
+    ).toBeCloseTo(30.5, 9);
+  });
 });
 
 describe("priceFor", () => {

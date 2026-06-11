@@ -4,9 +4,39 @@ All notable changes to this project are documented in this file. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] — 2026-06-11
+
+### Added
+
+- **Claude Fable 5 support** — `claude-fable-5` (and `claude-mythos-5`) in the
+  Anthropic adapter, built-in roster, examples, and pricing ($10/$50 per MTok).
+  Fable's always-on thinking is honored (no `thinking` param sent, sampling
+  params always dropped, `effort: none/off` rejected with a clear error), and a
+  `stop_reason: "refusal"` response (HTTP 200, empty content) now surfaces as an
+  error with the policy category instead of a silently empty output.
+- **`max` effort tier** accepted for the adaptive Anthropic line (Fable 5,
+  Opus 4.6+, Sonnet 4.6).
+- **Per-target `max_tokens`** in `lockstep.yaml` — overrides each adapter's
+  built-in output ceiling (Anthropic `max_tokens`, OpenAI
+  `max_completion_tokens`/`max_tokens`/`max_output_tokens` per API). Included in
+  the response-cache key, so pre-existing cache entries are invalidated once.
+- **Truncation flagging** — results now record `stopReason` and `truncated`
+  (Anthropic `max_tokens`, OpenAI `length` / `max_output_tokens`), so a
+  ceiling-clipped output is visible instead of passing as a normal result.
+- **OpenAI Responses API** — set `mode: responses` on an openai target to route
+  via `/responses` (enables Responses-only models like `gpt-5.5-pro`).
+- **Prompt-cache cost accounting** — Anthropic `cache_read_input_tokens` /
+  `cache_creation_input_tokens` are captured and billed at 0.1x / 1.25x the
+  input price, so cached runs report true cost.
+- **Dry-run cost estimate** — `run --dry-run` now shows a rough input-token and
+  input-cost estimate per target (chars/4 heuristic; ~1.3x for Fable's heavier
+  tokenizer), no API calls.
 
 ### Changed
+
+- **Anthropic adapter streams by default** — uses `messages.stream()` +
+  `finalMessage()` when available, so long thinking turns (minutes on Fable 5 at
+  high effort) no longer risk non-streaming HTTP timeouts.
 
 - **JUnit report** now emits a `<system-out>` per testcase with the (truncated)
   model output plus tokens/latency/cost and any judge score, so a CI test viewer

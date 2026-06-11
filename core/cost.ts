@@ -7,6 +7,7 @@ import type { Config, Price } from "./config.js";
  */
 export const DEFAULT_PRICING: Record<string, Price> = {
   // verify: Anthropic
+  "claude-fable-5": { in: 10, out: 50 },
   "claude-opus-4-8": { in: 5, out: 25 },
   "claude-opus-4-8-fast": { in: 10, out: 50 },
   "claude-opus-4-7": { in: 5, out: 25 },
@@ -25,22 +26,45 @@ export function priceFor(
   return config.pricing[model] ?? DEFAULT_PRICING[model];
 }
 
-/** Cost in USD = (tokensIn/1e6)*priceIn + (tokensOut/1e6)*priceOut. */
+/**
+ * Anthropic prompt-cache multipliers on the input price: reads bill at ~0.1x,
+ * writes (5-minute TTL) at ~1.25x. Cache tokens are separate usage categories —
+ * the API's input_tokens already excludes them.
+ */
+const CACHE_READ_MULT = 0.1;
+const CACHE_WRITE_MULT = 1.25;
+
+export interface CacheTokens {
+  read?: number;
+  write?: number;
+}
+
+/**
+ * Cost in USD = (tokensIn/1e6)*priceIn + (tokensOut/1e6)*priceOut
+ *             + cache reads at 0.1x in + cache writes at 1.25x in.
+ */
 export function computeCost(
   price: Price | undefined,
   tokensIn: number,
-  tokensOut: number
+  tokensOut: number,
+  cache: CacheTokens = {}
 ): number {
   if (!price) return 0;
-  return (tokensIn / 1e6) * price.in + (tokensOut / 1e6) * price.out;
+  return (
+    (tokensIn / 1e6) * price.in +
+    (tokensOut / 1e6) * price.out +
+    ((cache.read ?? 0) / 1e6) * price.in * CACHE_READ_MULT +
+    ((cache.write ?? 0) / 1e6) * price.in * CACHE_WRITE_MULT
+  );
 }
 
 export function costForModel(
   config: Pick<Config, "pricing">,
   model: string,
   tokensIn: number,
-  tokensOut: number
+  tokensOut: number,
+  cache: CacheTokens = {}
 ): { cost: number; priced: boolean } {
   const price = priceFor(config, model);
-  return { cost: computeCost(price, tokensIn, tokensOut), priced: !!price };
+  return { cost: computeCost(price, tokensIn, tokensOut, cache), priced: !!price };
 }

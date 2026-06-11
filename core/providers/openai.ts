@@ -51,6 +51,10 @@ export class OpenAIProvider implements Provider {
   }
 
   async run(req: RunRequest): Promise<RunResult> {
+    // mode: "responses" routes through the Responses API — required for models
+    // that aren't served on Chat Completions (e.g. gpt-5.5-pro).
+    if (req.mode === "responses") return this.runResponses(req);
+
     const messages: { role: string; content: string }[] = [];
     if (req.system) messages.push({ role: "system", content: req.system });
     for (const m of req.messages) messages.push({ role: m.role, content: m.content });
@@ -62,9 +66,11 @@ export class OpenAIProvider implements Provider {
     // Drop the params each model class rejects (both return 400 otherwise).
     if (isReasoningModel(req.model)) {
       if (req.effort) body.reasoning_effort = req.effort;
+      if (req.maxTokens !== undefined) body.max_completion_tokens = req.maxTokens;
     } else {
       if (req.temperature !== undefined) body.temperature = req.temperature;
       if (req.topP !== undefined) body.top_p = req.topP;
+      if (req.maxTokens !== undefined) body.max_tokens = req.maxTokens;
     }
     // OpenAI Chat Completions has no top_k. Dropping it silently would make an
     // anthropic-vs-openai compare use different sampling — warn once instead.
@@ -75,13 +81,81 @@ export class OpenAIProvider implements Provider {
       );
     }
 
+    const json = (await this.post("/chat/completions", body)) as {
+      choices?: { message?: { content?: string }; finish_reason?: string }[];
+      usage?: { prompt_tokens?: number; completion_tokens?: number };
+      _latencyMs: number;
+    };
+
+    const choice = json.choices?.[0];
+    return {
+      text: choice?.message?.content ?? "",
+      tokensIn: json.usage?.prompt_tokens ?? 0,
+      tokensOut: json.usage?.completion_tokens ?? 0,
+      latencyMs: json._latencyMs,
+      stopReason: choice?.finish_reason ?? undefined,
+      truncated: choice?.finish_reason === "length" || undefined,
+      raw: json,
+    };
+  }
+
+  /** Responses API path. Same Provider contract; different wire shape. */
+  private async runResponses(req: RunRequest): Promise<RunResult> {
+    const input: { role: string; content: string }[] = req.messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    const body: Record<string, unknown> = {
+      model: req.model,
+      input,
+    };
+    if (req.system) body.instructions = req.system;
+    if (isReasoningModel(req.model)) {
+      if (req.effort) body.reasoning = { effort: req.effort };
+    } else {
+      if (req.temperature !== undefined) body.temperature = req.temperature;
+      if (req.topP !== undefined) body.top_p = req.topP;
+    }
+    if (req.maxTokens !== undefined) body.max_output_tokens = req.maxTokens;
+
+    const json = (await this.post("/responses", body)) as {
+      output?: { type: string; content?: { type: string; text?: string }[] }[];
+      status?: string;
+      incomplete_details?: { reason?: string };
+      usage?: { input_tokens?: number; output_tokens?: number };
+      _latencyMs: number;
+    };
+
+    // Concatenate output_text parts across message items (reasoning items carry none).
+    const text = (json.output ?? [])
+      .filter((item) => item.type === "message")
+      .flatMap((item) => item.content ?? [])
+      .filter((c) => c.type === "output_text")
+      .map((c) => c.text ?? "")
+      .join("");
+
+    const incompleteReason = json.incomplete_details?.reason;
+    return {
+      text,
+      tokensIn: json.usage?.input_tokens ?? 0,
+      tokensOut: json.usage?.output_tokens ?? 0,
+      latencyMs: json._latencyMs,
+      stopReason: json.status === "incomplete" ? (incompleteReason ?? "incomplete") : json.status,
+      truncated: incompleteReason === "max_output_tokens" || undefined,
+      raw: json,
+    };
+  }
+
+  /** POST helper shared by both API paths: timeout, error bounding, latency. */
+  private async post(path: string, body: Record<string, unknown>): Promise<unknown> {
     const start = Date.now();
     const ms = timeoutMs();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ms);
     let resp: Response;
     try {
-      resp = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
+      resp = await this.fetchImpl(`${this.baseUrl}${path}`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -110,18 +184,7 @@ export class OpenAIProvider implements Provider {
       throw err;
     }
 
-    const json = (await resp.json()) as {
-      choices?: { message?: { content?: string } }[];
-      usage?: { prompt_tokens?: number; completion_tokens?: number };
-    };
-
-    const text = json.choices?.[0]?.message?.content ?? "";
-    return {
-      text,
-      tokensIn: json.usage?.prompt_tokens ?? 0,
-      tokensOut: json.usage?.completion_tokens ?? 0,
-      latencyMs,
-      raw: json,
-    };
+    const json = (await resp.json()) as Record<string, unknown>;
+    return { ...json, _latencyMs: latencyMs };
   }
 }

@@ -13,6 +13,10 @@ export interface CacheEntry {
   tokensIn: number;
   tokensOut: number;
   latencyMs: number;
+  stopReason?: string;
+  truncated?: boolean;
+  tokensCacheRead?: number;
+  tokensCacheWrite?: number;
 }
 
 export interface ProviderCache {
@@ -33,6 +37,9 @@ export function cacheKey(provider: string, req: RunRequest): string {
     messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
     effort: req.effort ?? null,
     mode: req.mode ?? null,
+    // In the key because it changes where output gets cut off. Adding it
+    // invalidates pre-existing cache entries once (their keys lack the field).
+    maxTokens: req.maxTokens ?? null,
     temperature: req.temperature ?? null,
     topP: req.topP ?? null,
     topK: req.topK ?? null,
